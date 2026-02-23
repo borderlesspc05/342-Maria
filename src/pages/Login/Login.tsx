@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { HiMail, HiLockClosed } from "react-icons/hi";
 import { useAuth } from "../../hooks/useAuth";
@@ -6,7 +6,14 @@ import "./Login.css";
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, user, loading: authLoading } = useAuth();
+
+  /* Se já houver sessão ativa, redireciona direto ao dashboard */
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [user, authLoading, navigate]);
 
   const [formData, setFormData] = useState({
     email: "",
@@ -82,6 +89,21 @@ const Login: React.FC = () => {
       setLoading(false);
     }
   };
+
+  /* Enquanto o Firebase verifica a sessão salva, não mostra o formulário */
+  if (authLoading) {
+    return (
+      <div className="login-container">
+        <div className="login-background">
+          <div className="shape-1"></div>
+          <div className="shape-2"></div>
+        </div>
+        <div className="login-card login-card--loading">
+          <div className="login-spinner" aria-label="Verificando sessão..." />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="login-container">

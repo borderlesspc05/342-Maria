@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { Layout } from "../../components/Layout";
 import {
   HiPlus,
@@ -11,13 +11,22 @@ import {
   HiPencil,
   HiTrash,
   HiX,
+  HiDownload,
+  HiPhotograph,
+  HiUpload,
 } from "react-icons/hi";
 import { cadernoVirtualService } from "../../services/cadernoVirtualService";
 import { colaboradorService } from "../../services/colaboradorService";
+import {
+  formatFileSize,
+  validateFileSize,
+  validateFileType,
+} from "../../services/anexoService";
 import { useAuth } from "../../hooks/useAuth";
 import { useToast } from "../../contexts/ToastContext";
 import type { Colaborador } from "../../types/premioProdutividade";
 import type {
+  AnexoLancamento,
   LancamentoDiario,
   LancamentoFilters,
   LancamentoStatus,
@@ -34,6 +43,30 @@ const tiposMovimentacao: TipoMovimentacao[] = [
 ];
 
 const statusOptions: LancamentoStatus[] = ["Recebido", "Pendente"];
+
+const ALLOWED_FILE_TYPES = [
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/jpg",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+];
+const MAX_FILE_SIZE_MB = 2;
+
+function getFileIcon(tipo: string) {
+  if (tipo.startsWith("image/")) return HiPhotograph;
+  return HiDocumentText;
+}
+
+function downloadAnexo(anexo: AnexoLancamento) {
+  const link = document.createElement("a");
+  link.href = anexo.url;
+  link.download = anexo.nome;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
 
 const LancamentosDiarios: React.FC = () => {
   const { user } = useAuth();
@@ -105,9 +138,8 @@ const LancamentosDiarios: React.FC = () => {
     }
   };
 
-  const getStatusClass = (status: LancamentoStatus) => {
-    return status === "Recebido" ? "recebido" : "pendente";
-  };
+  const getStatusClass = (status: LancamentoStatus) =>
+    status === "Recebido" ? "recebido" : "pendente";
 
   const getTipoClass = (tipo: TipoMovimentacao) => {
     const classes: Record<TipoMovimentacao, string> = {
@@ -330,12 +362,19 @@ const LancamentosDiarios: React.FC = () => {
                     </td>
                     <td>
                       {lancamento.anexos.length > 0 ? (
-                        <div className="lancamentos-anexos-count">
+                        <button
+                          className="lancamentos-anexos-count"
+                          title="Ver comprovantes"
+                          onClick={() => {
+                            setEditingLancamento(lancamento);
+                            setShowModal(true);
+                          }}
+                        >
                           <HiPaperClip />
                           <span>{lancamento.anexos.length}</span>
-                        </div>
+                        </button>
                       ) : (
-                        <span className="lancamentos-sem-anexo">-</span>
+                        <span className="lancamentos-sem-anexo">—</span>
                       )}
                     </td>
                     <td>
@@ -428,29 +467,49 @@ const LancamentoModal: React.FC<LancamentoModalProps> = ({
   userName,
 }) => {
   const { showToast } = useToast();
-  const defaultColab = colaboradoresList.length > 0 ? colaboradoresList[0] : null;
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const defaultColab =
+    colaboradoresList.length > 0 ? colaboradoresList[0] : null;
 
-  const initialFormData = useMemo(() => ({
-    tipoMovimentacao: (lancamento?.tipoMovimentacao || "Serviço") as TipoMovimentacao,
-    descricao: lancamento?.descricao || "",
-    valor: lancamento?.valor ?? 0,
-    valorDisplay: (lancamento?.valor ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-    dataLancamento: lancamento?.dataLancamento
-      ? new Date(lancamento.dataLancamento).toISOString().split("T")[0]
-      : new Date().toISOString().split("T")[0],
-    status: (lancamento?.status || "Pendente") as LancamentoStatus,
-    colaboradorId: lancamento?.colaboradorId || defaultColab?.id || userId,
-    colaboradorNome: lancamento?.colaboradorNome || defaultColab?.nome || userName,
-    observacoes: lancamento?.observacoes || "",
-    anexos: [] as File[],
-  }), [lancamento]);
+  const initialFormData = useMemo(
+    () => ({
+      tipoMovimentacao: (lancamento?.tipoMovimentacao ||
+        "Serviço") as TipoMovimentacao,
+      descricao: lancamento?.descricao || "",
+      valor: lancamento?.valor ?? 0,
+      valorDisplay: (lancamento?.valor ?? 0).toLocaleString("pt-BR", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+      dataLancamento: lancamento?.dataLancamento
+        ? new Date(lancamento.dataLancamento).toISOString().split("T")[0]
+        : new Date().toISOString().split("T")[0],
+      status: (lancamento?.status || "Pendente") as LancamentoStatus,
+      colaboradorId:
+        lancamento?.colaboradorId || defaultColab?.id || userId,
+      colaboradorNome:
+        lancamento?.colaboradorNome || defaultColab?.nome || userName,
+      observacoes: lancamento?.observacoes || "",
+    }),
+    [lancamento, defaultColab, userId, userName]
+  );
 
   const [formData, setFormData] = useState(initialFormData);
   const [saving, setSaving] = useState(false);
 
-  /* Ao abrir para outro lançamento (editar), atualiza o formulário */
+  /* Estado de anexos separado para melhor controle */
+  const [existingAnexos, setExistingAnexos] = useState<AnexoLancamento[]>(
+    lancamento?.anexos || []
+  );
+  const [newFiles, setNewFiles] = useState<File[]>([]);
+  const [fileErrors, setFileErrors] = useState<string[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
+
   useEffect(() => {
     setFormData(initialFormData);
+    setExistingAnexos(lancamento?.anexos || []);
+    setNewFiles([]);
+    setFileErrors([]);
   }, [lancamento, initialFormData]);
 
   const handleChange = (
@@ -459,46 +518,25 @@ const LancamentoModal: React.FC<LancamentoModalProps> = ({
     >
   ) => {
     const { name, value } = e.target;
-    
+
     if (name === "valor") {
-      // Remove tudo que não é dígito
-      const cleaned = value.replace(/\D/g, '');
+      const cleaned = value.replace(/\D/g, "");
       if (!cleaned) {
-        setFormData((prev) => ({
-          ...prev,
-          valor: 0,
-          valorDisplay: '0,00',
-        }));
+        setFormData((prev) => ({ ...prev, valor: 0, valorDisplay: "0,00" }));
         return;
       }
       const number = parseFloat(cleaned) / 100;
       setFormData((prev) => ({
         ...prev,
         valor: number,
-        valorDisplay: number.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        valorDisplay: number.toLocaleString("pt-BR", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }),
       }));
     } else {
-      setFormData((prev) => ({
-        ...prev,
-        [name]: value,
-      }));
+      setFormData((prev) => ({ ...prev, [name]: value }));
     }
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setFormData((prev) => ({
-        ...prev,
-        anexos: Array.from(e.target.files || []),
-      }));
-    }
-  };
-
-  const removeFile = (index: number) => {
-    setFormData((prev) => ({
-      ...prev,
-      anexos: prev.anexos.filter((_, i) => i !== index),
-    }));
   };
 
   const handleColaboradorChange = (colaboradorId: string) => {
@@ -510,6 +548,61 @@ const LancamentoModal: React.FC<LancamentoModalProps> = ({
         colaboradorNome: colaborador.nome,
       }));
     }
+  };
+
+  const processFiles = (files: File[]) => {
+    const errors: string[] = [];
+    const valid: File[] = [];
+
+    files.forEach((file) => {
+      if (!validateFileSize(file, MAX_FILE_SIZE_MB)) {
+        errors.push(`"${file.name}" excede ${MAX_FILE_SIZE_MB}MB`);
+      } else if (!validateFileType(file, ALLOWED_FILE_TYPES)) {
+        errors.push(`"${file.name}": tipo não permitido`);
+      } else {
+        valid.push(file);
+      }
+    });
+
+    if (errors.length > 0) setFileErrors(errors);
+    else setFileErrors([]);
+
+    if (valid.length > 0) {
+      setNewFiles((prev) => [...prev, ...valid]);
+    }
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      processFiles(Array.from(e.target.files));
+      e.target.value = "";
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files) {
+      processFiles(Array.from(e.dataTransfer.files));
+    }
+  };
+
+  const removeNewFile = (index: number) => {
+    setNewFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const removeExistingAnexo = (anexoId: string) => {
+    setExistingAnexos((prev) => prev.filter((a) => a.id !== anexoId));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -526,7 +619,8 @@ const LancamentoModal: React.FC<LancamentoModalProps> = ({
         colaboradorId: formData.colaboradorId,
         colaboradorNome: formData.colaboradorNome,
         observacoes: formData.observacoes,
-        anexos: formData.anexos,
+        anexos: newFiles,
+        anexosExistentes: existingAnexos,
       };
 
       if (lancamento) {
@@ -546,9 +640,14 @@ const LancamentoModal: React.FC<LancamentoModalProps> = ({
     }
   };
 
+  const totalAnexos = existingAnexos.length + newFiles.length;
+
   return (
     <div className="lancamentos-modal-overlay" onClick={onClose}>
-      <div className="lancamentos-modal" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="lancamentos-modal"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="lancamentos-modal-header">
           <h2>{lancamento ? "Editar Lançamento" : "Novo Lançamento Diário"}</h2>
           <button className="lancamentos-modal-close" onClick={onClose}>
@@ -650,45 +749,142 @@ const LancamentoModal: React.FC<LancamentoModalProps> = ({
               name="observacoes"
               value={formData.observacoes}
               onChange={handleChange}
-              rows={3}
+              rows={2}
               placeholder="Observações adicionais..."
             />
           </div>
 
-          <div className="lancamentos-modal-group">
-            <label>Anexar Comprovantes</label>
-            <div className="lancamentos-file-upload">
+          {/* ── Seção de Anexos ─────────────────────────────────── */}
+          <div className="lancamentos-anexos-section">
+            <div className="lancamentos-anexos-section-header">
+              <HiPaperClip />
+              <span>
+                Comprovantes
+                {totalAnexos > 0 && (
+                  <span className="lancamentos-anexos-badge">{totalAnexos}</span>
+                )}
+              </span>
+            </div>
+
+            {/* Anexos já salvos */}
+            {existingAnexos.length > 0 && (
+              <div className="lancamentos-anexos-saved">
+                <p className="lancamentos-anexos-saved-label">Salvos</p>
+                <div className="lancamentos-file-list">
+                  {existingAnexos.map((anexo) => {
+                    const Icon = getFileIcon(anexo.tipo);
+                    return (
+                      <div key={anexo.id} className="lancamentos-file-item saved">
+                        <Icon className="lancamentos-file-icon" />
+                        <div className="lancamentos-file-info">
+                          <span className="lancamentos-file-name">
+                            {anexo.nome}
+                          </span>
+                          <span className="lancamentos-file-size">
+                            {formatFileSize(anexo.tamanho)}
+                          </span>
+                        </div>
+                        <div className="lancamentos-file-actions">
+                          <button
+                            type="button"
+                            className="lancamentos-file-btn download"
+                            title="Baixar arquivo"
+                            onClick={() => downloadAnexo(anexo)}
+                          >
+                            <HiDownload />
+                          </button>
+                          <button
+                            type="button"
+                            className="lancamentos-file-btn remove"
+                            title="Remover anexo"
+                            onClick={() => removeExistingAnexo(anexo.id)}
+                          >
+                            <HiX />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Novos arquivos selecionados (ainda não salvos) */}
+            {newFiles.length > 0 && (
+              <div className="lancamentos-anexos-new">
+                {existingAnexos.length > 0 && (
+                  <p className="lancamentos-anexos-saved-label">Novos</p>
+                )}
+                <div className="lancamentos-file-list">
+                  {newFiles.map((file, index) => {
+                    const Icon = getFileIcon(file.type);
+                    return (
+                      <div key={index} className="lancamentos-file-item new">
+                        <Icon className="lancamentos-file-icon" />
+                        <div className="lancamentos-file-info">
+                          <span className="lancamentos-file-name">
+                            {file.name}
+                          </span>
+                          <span className="lancamentos-file-size">
+                            {formatFileSize(file.size)}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          className="lancamentos-file-btn remove"
+                          title="Remover"
+                          onClick={() => removeNewFile(index)}
+                        >
+                          <HiX />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Erros de validação */}
+            {fileErrors.length > 0 && (
+              <div className="lancamentos-file-errors">
+                {fileErrors.map((err, i) => (
+                  <p key={i}>{err}</p>
+                ))}
+              </div>
+            )}
+
+            {/* Zona de upload (drag & drop) */}
+            <div
+              className={`lancamentos-dropzone ${isDragging ? "dragging" : ""}`}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
+              role="button"
+              tabIndex={0}
+              aria-label="Clique ou arraste arquivos para fazer upload"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ")
+                  fileInputRef.current?.click();
+              }}
+            >
               <input
+                ref={fileInputRef}
                 type="file"
                 multiple
                 accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                onChange={handleFileChange}
-                id="lancamento-file-upload"
+                onChange={handleFileInputChange}
+                style={{ display: "none" }}
               />
-              <label
-                htmlFor="lancamento-file-upload"
-                className="lancamentos-file-upload-label"
-              >
-                <HiPaperClip />
-                Selecionar arquivos (PDF, OS, Boletos, Comprovantes)
-              </label>
-              {formData.anexos.length > 0 && (
-                <div className="lancamentos-file-list">
-                  {formData.anexos.map((file, index) => (
-                    <div key={index} className="lancamentos-file-item">
-                      <HiDocumentText />
-                      <span>{file.name}</span>
-                      <button
-                        type="button"
-                        onClick={() => removeFile(index)}
-                        className="lancamentos-file-remove"
-                      >
-                        <HiX />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <HiUpload className="lancamentos-dropzone-icon" />
+              <p className="lancamentos-dropzone-text">
+                {isDragging
+                  ? "Solte os arquivos aqui"
+                  : "Clique ou arraste comprovantes aqui"}
+              </p>
+              <p className="lancamentos-dropzone-hint">
+                PDF, JPG, PNG, DOC · máx. {MAX_FILE_SIZE_MB}MB por arquivo
+              </p>
             </div>
           </div>
 
@@ -705,7 +901,13 @@ const LancamentoModal: React.FC<LancamentoModalProps> = ({
               className="lancamentos-primary-btn"
               disabled={saving}
             >
-              {saving ? "Salvando..." : lancamento ? "Atualizar" : "Cadastrar"}
+              {saving
+                ? newFiles.length > 0
+                  ? "Processando anexos..."
+                  : "Salvando..."
+                : lancamento
+                ? "Atualizar"
+                : "Cadastrar"}
             </button>
           </div>
         </form>

@@ -14,7 +14,9 @@ import {
   type DocumentData,
 } from "firebase/firestore";
 import { db } from "../lib/firebaseconfig";
+import { storageService } from "./storageService";
 import type {
+  AnexoLancamento,
   LancamentoDiario,
   LancamentoFormData,
   LancamentoFilters,
@@ -23,11 +25,85 @@ import type {
   TipoMovimentacao,
 } from "../types/cadernoVirtual";
 
+const STORAGE_BASE_PATH_CADERNO = "caderno_virtual";
+
 const LANCAMENTOS_COLLECTION = "lancamentosDiarios";
 const LOCAL_LANCAMENTOS_KEY = "caderno_virtual_lancamentos_local";
-const CREATE_TIMEOUT_MS = 15000;
-const UPDATE_TIMEOUT_MS = 15000;
+const CREATE_TIMEOUT_MS = 30000;
+const UPDATE_TIMEOUT_MS = 30000;
 const LIST_TIMEOUT_MS = 10000;
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = (error) => reject(error);
+  });
+}
+
+/** Converte File[] em AnexoLancamento[]: tenta Storage; se falhar ou não estiver ativo, usa base64. */
+async function convertFilesToAnexos(files: File[]): Promise<AnexoLancamento[]> {
+  if (files.length === 0) return [];
+
+  const toBase64Anexos = async (): Promise<AnexoLancamento[]> => {
+    const result: AnexoLancamento[] = [];
+    for (const file of files) {
+      const base64 = await fileToBase64(file);
+      result.push({
+        id: `anexo-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+        nome: file.name,
+        tipo: file.type,
+        url: base64,
+        tamanho: file.size,
+        dataUpload: new Date(),
+      });
+    }
+    return result;
+  };
+
+  if (!isFirebaseConfigured() || !storageService.isStorageAvailable()) {
+    return toBase64Anexos();
+  }
+
+  try {
+    const uploaded = await Promise.race([
+      storageService.uploadFiles(files, STORAGE_BASE_PATH_CADERNO),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Storage timeout")), 15000)
+      ),
+    ]);
+    return uploaded.map((r) => ({
+      id: r.id,
+      nome: r.nome,
+      tipo: r.tipo,
+      url: r.url,
+      tamanho: r.tamanho,
+      dataUpload: r.dataUpload,
+      storagePath: r.storagePath,
+    }));
+  } catch (err) {
+    console.warn("Upload para Storage falhou, usando base64:", err);
+    return toBase64Anexos();
+  }
+}
+
+function mapRawAnexo(a: Record<string, unknown>): AnexoLancamento {
+  return {
+    id: a.id as string,
+    nome: a.nome as string,
+    tipo: a.tipo as string,
+    url: a.url as string,
+    tamanho: a.tamanho as number,
+    dataUpload:
+      a.dataUpload instanceof Timestamp
+        ? a.dataUpload.toDate()
+        : a.dataUpload
+          ? new Date(a.dataUpload as string)
+          : new Date(),
+    storagePath: a.storagePath as string | undefined,
+  };
+}
 
 /** Cache do último resultado Firebase para não perder a lista quando a consulta falha (ex.: após atualizar status) */
 let lastFirebaseItems: LancamentoDiario[] = [];
@@ -117,7 +193,7 @@ const mapSnapshotToLancamento = (
     colaboradorId: data.colaboradorId,
     colaboradorNome: data.colaboradorNome,
     observacoes: data.observacoes,
-    anexos: data.anexos || [],
+    anexos: ((data.anexos as Record<string, unknown>[]) || []).map(mapRawAnexo),
     criadoPor: data.criadoPor,
     criadoEm: data.criadoEm ? data.criadoEm.toDate() : new Date(),
     atualizadoEm: data.atualizadoEm ? data.atualizadoEm.toDate() : new Date(),
@@ -252,6 +328,9 @@ export const cadernoVirtualService = {
   ): Promise<string> {
     const now = new Date();
     const localId = `local-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const anexosConvertidos = data.anexos?.length
+      ? await convertFilesToAnexos(data.anexos)
+      : [];
 
     const buildLocalLancamento = (): LancamentoDiario => ({
       id: localId,
@@ -263,7 +342,7 @@ export const cadernoVirtualService = {
       colaboradorId: data.colaboradorId,
       colaboradorNome: data.colaboradorNome,
       observacoes: data.observacoes,
-      anexos: [],
+      anexos: anexosConvertidos,
       criadoPor: userId,
       criadoEm: now,
       atualizadoEm: now,
@@ -276,8 +355,9 @@ export const cadernoVirtualService = {
     }
 
     const doCreate = async (): Promise<string> => {
+      const { anexos: _files, anexosExistentes: _existentes, ...rest } = data;
       const payload = {
-        ...data,
+        ...rest,
         valor: Number(data.valor),
         dataLancamento: Timestamp.fromDate(data.dataLancamento),
         colaboradorNomeSearch: data.colaboradorNome
@@ -286,7 +366,7 @@ export const cadernoVirtualService = {
           .filter(Boolean),
         criadoPor: userId,
         criadoPorNome: userName,
-        anexos: [],
+        anexos: anexosConvertidos,
         criadoEm: Timestamp.now(),
         atualizadoEm: Timestamp.now(),
       };
@@ -308,10 +388,24 @@ export const cadernoVirtualService = {
   },
 
   async update(id: string, data: Partial<LancamentoFormData>): Promise<void> {
+    const hasAnexoChanges =
+      (data.anexos !== undefined && data.anexos.length > 0) ||
+      data.anexosExistentes !== undefined;
+
     if (id.startsWith("local-")) {
       const list = getLocalLancamentos();
       const item = list.find((n) => n.id === id);
       if (!item) return;
+
+      let novoAnexos = item.anexos;
+      if (hasAnexoChanges) {
+        const novosConvertidos = data.anexos?.length
+          ? await convertFilesToAnexos(data.anexos)
+          : [];
+        const mantidos = data.anexosExistentes ?? item.anexos;
+        novoAnexos = [...mantidos, ...novosConvertidos];
+      }
+
       const updated: LancamentoDiario = {
         ...item,
         tipoMovimentacao: data.tipoMovimentacao ?? item.tipoMovimentacao,
@@ -321,7 +415,9 @@ export const cadernoVirtualService = {
         status: data.status ?? item.status,
         colaboradorId: data.colaboradorId ?? item.colaboradorId,
         colaboradorNome: data.colaboradorNome ?? item.colaboradorNome,
-        observacoes: data.observacoes !== undefined ? data.observacoes : item.observacoes,
+        observacoes:
+          data.observacoes !== undefined ? data.observacoes : item.observacoes,
+        anexos: novoAnexos,
         atualizadoEm: new Date(),
       };
       saveLocalLancamento(updated);
@@ -336,12 +432,15 @@ export const cadernoVirtualService = {
     const payload: Record<string, unknown> = {
       atualizadoEm: Timestamp.now(),
     };
-    if (data.tipoMovimentacao !== undefined) payload.tipoMovimentacao = data.tipoMovimentacao;
+    if (data.tipoMovimentacao !== undefined)
+      payload.tipoMovimentacao = data.tipoMovimentacao;
     if (data.descricao !== undefined) payload.descricao = data.descricao;
     if (data.valor !== undefined) payload.valor = Number(data.valor);
-    if (data.dataLancamento) payload.dataLancamento = Timestamp.fromDate(data.dataLancamento);
+    if (data.dataLancamento)
+      payload.dataLancamento = Timestamp.fromDate(data.dataLancamento);
     if (data.status !== undefined) payload.status = data.status;
-    if (data.colaboradorId !== undefined) payload.colaboradorId = data.colaboradorId;
+    if (data.colaboradorId !== undefined)
+      payload.colaboradorId = data.colaboradorId;
     if (data.colaboradorNome !== undefined) {
       payload.colaboradorNome = data.colaboradorNome;
       payload.colaboradorNomeSearch = data.colaboradorNome
@@ -351,6 +450,15 @@ export const cadernoVirtualService = {
     }
     if (data.observacoes !== undefined) payload.observacoes = data.observacoes;
 
+    if (hasAnexoChanges) {
+      const novosConvertidos = data.anexos?.length
+        ? await convertFilesToAnexos(data.anexos)
+        : [];
+      const cached = lastFirebaseItems.find((i) => i.id === id);
+      const mantidos = data.anexosExistentes ?? cached?.anexos ?? [];
+      payload.anexos = [...mantidos, ...novosConvertidos];
+    }
+
     const doUpdate = async (): Promise<void> => {
       await updateDoc(docRef, payload);
       const now = new Date();
@@ -358,16 +466,23 @@ export const cadernoVirtualService = {
         item.id === id
           ? {
               ...item,
-              tipoMovimentacao: data.tipoMovimentacao ?? item.tipoMovimentacao,
+              tipoMovimentacao:
+                data.tipoMovimentacao ?? item.tipoMovimentacao,
               descricao: data.descricao ?? item.descricao,
-              valor: data.valor !== undefined ? Number(data.valor) : item.valor,
+              valor:
+                data.valor !== undefined ? Number(data.valor) : item.valor,
               dataLancamento: data.dataLancamento ?? item.dataLancamento,
               status: data.status ?? item.status,
               colaboradorId: data.colaboradorId ?? item.colaboradorId,
               colaboradorNome: data.colaboradorNome ?? item.colaboradorNome,
-              observacoes: data.observacoes !== undefined ? data.observacoes : item.observacoes,
+              observacoes:
+                data.observacoes !== undefined
+                  ? data.observacoes
+                  : item.observacoes,
               atualizadoEm: now,
-              anexos: item.anexos,
+              anexos: hasAnexoChanges
+                ? (payload.anexos as AnexoLancamento[])
+                : item.anexos,
             }
           : item
       );
@@ -406,6 +521,46 @@ export const cadernoVirtualService = {
     const docRef = doc(lancamentosCollection, id);
     await deleteDoc(docRef);
     lastFirebaseItems = lastFirebaseItems.filter((item) => item.id !== id);
+  },
+
+  async removeAnexo(lancamentoId: string, anexoId: string): Promise<void> {
+    if (lancamentoId.startsWith("local-")) {
+      const list = getLocalLancamentos();
+      const item = list.find((n) => n.id === lancamentoId);
+      if (!item) return;
+      saveLocalLancamento({
+        ...item,
+        anexos: item.anexos.filter((a) => a.id !== anexoId),
+        atualizadoEm: new Date(),
+      });
+      return;
+    }
+
+    if (!isFirebaseConfigured()) return;
+
+    const cached = lastFirebaseItems.find((i) => i.id === lancamentoId);
+    const anexoRemovido = cached?.anexos?.find((a) => a.id === anexoId);
+    if (
+      anexoRemovido?.storagePath &&
+      storageService.isStorageAvailable()
+    ) {
+      await storageService.deleteFile(anexoRemovido.storagePath);
+    }
+
+    const novosAnexos = (cached?.anexos ?? []).filter((a) => a.id !== anexoId);
+    const docRef = doc(lancamentosCollection, lancamentoId);
+    await updateDoc(docRef, {
+      anexos: novosAnexos.map((a) => ({
+        ...a,
+        dataUpload: Timestamp.fromDate(a.dataUpload),
+      })),
+      atualizadoEm: Timestamp.now(),
+    });
+    lastFirebaseItems = lastFirebaseItems.map((item) =>
+      item.id === lancamentoId
+        ? { ...item, anexos: novosAnexos, atualizadoEm: new Date() }
+        : item
+    );
   },
 
   async getStats(dataInicio?: Date, dataFim?: Date): Promise<LancamentoStats> {

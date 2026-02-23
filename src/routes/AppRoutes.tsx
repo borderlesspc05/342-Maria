@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { paths } from "./paths";
 import { ProtectedRoutes } from "./ProtectedRoutes";
 import Login from "../pages/Login/Login";
@@ -29,11 +29,7 @@ export function AppRoutes() {
         <Route path={paths.forgotPassword} element={<ForgotPassword />} />
         <Route
           path={paths.home}
-          element={
-            <ProtectedRoutes>
-              <Dashboard />
-            </ProtectedRoutes>
-          }
+          element={<Navigate to={paths.login} replace />}
         />
         <Route
           path={paths.dashboard}

@@ -9,6 +9,8 @@ export interface Anexo {
   url: string;
   tamanho: number;
   dataUpload: Date;
+  /** Caminho no Firebase Storage; presente quando o anexo foi enviado via Storage (não base64). */
+  storagePath?: string;
 }
 
 export interface BoletimMedicao {

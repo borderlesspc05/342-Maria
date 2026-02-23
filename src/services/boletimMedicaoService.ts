@@ -24,11 +24,29 @@ import { uploadAnexos, removeAnexo } from "./anexoService";
 
 const BOLETINS_COLLECTION = "boletinsMedicao";
 
+function mapAnexoFromFirestore(raw: Record<string, unknown>): Anexo {
+  return {
+    id: (raw.id as string) || "",
+    nome: (raw.nome as string) || "",
+    tipo: (raw.tipo as string) || "",
+    url: (raw.url as string) || "",
+    tamanho: (raw.tamanho as number) || 0,
+    dataUpload:
+      raw.dataUpload instanceof Timestamp
+        ? raw.dataUpload.toDate()
+        : raw.dataUpload
+          ? new Date(raw.dataUpload as string)
+          : new Date(),
+    storagePath: raw.storagePath as string | undefined,
+  };
+}
+
 /**
  * Converte um documento do Firestore para BoletimMedicao
  */
 function convertToBoletim(doc: any): BoletimMedicao {
   const data = doc.data();
+  const rawAnexos = (data.anexos as Record<string, unknown>[]) || [];
   return {
     id: doc.id,
     numero: data.numero || "",
@@ -41,7 +59,7 @@ function convertToBoletim(doc: any): BoletimMedicao {
     dataEmissao: data.dataEmissao?.toDate?.() || new Date(data.dataEmissao || Date.now()),
     dataVencimento: data.dataVencimento?.toDate?.() || new Date(data.dataVencimento || Date.now()),
     observacoes: data.observacoes || "",
-    anexos: data.anexos || [],
+    anexos: rawAnexos.map(mapAnexoFromFirestore),
     criadoPor: data.criadoPor || "unknown",
     criadoEm: data.criadoEm?.toDate?.() || new Date(data.criadoEm || Date.now()),
     atualizadoEm: data.atualizadoEm?.toDate?.() || new Date(data.atualizadoEm || Date.now()),
@@ -393,7 +411,7 @@ export const boletimMedicaoService = {
   },
 
   /**
-   * Remove um anexo de um boletim
+   * Remove um anexo de um boletim (Firestore + Firebase Storage quando houver storagePath)
    */
   async removeAnexo(boletimId: string, anexoId: string): Promise<void> {
     try {
@@ -402,18 +420,21 @@ export const boletimMedicaoService = {
         throw new Error("Boletim não encontrado");
       }
 
-      // Remover anexo da lista
+      const anexoRemovido = boletim.anexos.find((a) => a.id === anexoId);
+      if (anexoRemovido) {
+        await removeAnexo(anexoRemovido);
+      }
+
       const anexosAtualizados = boletim.anexos.filter((a) => a.id !== anexoId);
 
-      // Atualizar no Firestore
       const docRef = doc(db, BOLETINS_COLLECTION, boletimId);
       await updateDoc(docRef, {
-        anexos: anexosAtualizados,
+        anexos: anexosAtualizados.map((a) => ({
+          ...a,
+          dataUpload: a.dataUpload instanceof Date ? Timestamp.fromDate(a.dataUpload) : a.dataUpload,
+        })),
         atualizadoEm: Timestamp.fromDate(new Date()),
       });
-
-      // Remover arquivo (em produção, do Firebase Storage)
-      await removeAnexo(anexoId);
     } catch (error) {
       console.error("Erro ao remover anexo:", error);
       throw new Error("Falha ao remover anexo");

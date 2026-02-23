@@ -1,2 +1,12 @@
 node_modules
 .env
+.vite
+
+# Chave do Firebase Admin SDK (NUNCA commitar – uso apenas em backend/Cloud Functions)
+*firebase*adminsdk*.json
+*-firebase-adminsdk-*.json
+
+# Firebase CLI (cache/local)
+.firebase
+firebase-debug.log
+firebase-debug.*.log

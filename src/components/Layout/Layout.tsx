@@ -9,9 +9,14 @@ interface LayoutProps {
   children: React.ReactNode;
 }
 
-const getInitialCollapsed = () => {
-  if (typeof window === "undefined") return false;
-  return window.innerWidth <= 768;
+const SIDEBAR_KEY = "sidebar_collapsed";
+
+const getInitialCollapsed = (): boolean => {
+  if (typeof window === "undefined") return true;
+  if (window.innerWidth <= 768) return true;
+  const saved = localStorage.getItem(SIDEBAR_KEY);
+  /* Se nunca foi salvo, começa fechada por padrão */
+  return saved !== null ? saved === "true" : true;
 };
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
@@ -22,7 +27,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
 
   const toggleSidebar = () => {
-    setSidebarCollapsed(!sidebarCollapsed);
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      if (typeof window !== "undefined" && window.innerWidth > 768) {
+        localStorage.setItem(SIDEBAR_KEY, String(next));
+      }
+      return next;
+    });
   };
 
   useEffect(() => {
