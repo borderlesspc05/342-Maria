@@ -5,6 +5,9 @@ export interface RelatorioConsolidado {
   dataGeracao: Date;
   geradoPor: string;
   geradoPorNome: string;
+  /** Preenchido quando o relatório foi filtrado por colaborador */
+  colaboradorId?: string;
+  colaboradorNome?: string;
   resumo: ResumoRelatorio;
   premios: ResumoPremios;
   boletins: ResumoBoletins;

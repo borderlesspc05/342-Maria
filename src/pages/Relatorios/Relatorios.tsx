@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Layout } from "../../components/Layout";
 import {
   HiDocumentReport,
@@ -6,43 +6,57 @@ import {
   HiDocumentText,
   HiChartBar,
   HiCalendar,
+  HiUser,
 } from "react-icons/hi";
 import { relatoriosService } from "../../services/relatoriosService";
+import { colaboradorService } from "../../services/colaboradorService";
+import { useToast } from "../../contexts/ToastContext";
 import type { RelatorioConsolidado } from "../../types/relatorios";
+import type { Colaborador } from "../../types/premioProdutividade";
 import "./Relatorios.css";
 
-const meses = [
-  "Janeiro",
-  "Fevereiro",
-  "Março",
-  "Abril",
-  "Maio",
-  "Junho",
-  "Julho",
-  "Agosto",
-  "Setembro",
-  "Outubro",
-  "Novembro",
-  "Dezembro",
+const MESES = [
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ];
 
 const Relatorios: React.FC = () => {
   const hoje = new Date();
+  const { showToast } = useToast();
   const [mes, setMes] = useState(hoje.getMonth() + 1);
   const [ano, setAno] = useState(hoje.getFullYear());
+  const [colaboradorId, setColaboradorId] = useState<string>("");
+  const [colaboradoresList, setColaboradoresList] = useState<Colaborador[]>([]);
   const [relatorio, setRelatorio] = useState<RelatorioConsolidado | null>(null);
   const [loading, setLoading] = useState(false);
   const [exportingPDF, setExportingPDF] = useState(false);
   const [exportingExcel, setExportingExcel] = useState(false);
 
+  useEffect(() => {
+    colaboradorService.list().then(setColaboradoresList).catch(() => {
+      showToast("Não foi possível carregar a lista de colaboradores.", "error");
+    });
+  }, [showToast]);
+
   const handleGerarRelatorio = async () => {
     try {
       setLoading(true);
-      const data = await relatoriosService.gerarRelatorioConsolidado(mes, ano);
+      setRelatorio(null);
+      const colaboradorNome =
+        colaboradorId
+          ? colaboradoresList.find((c) => c.id === colaboradorId)?.nome
+          : undefined;
+      const data = await relatoriosService.gerarRelatorioConsolidado(
+        mes,
+        ano,
+        colaboradorId || undefined,
+        colaboradorNome
+      );
       setRelatorio(data);
+      showToast("Relatório gerado com sucesso.");
     } catch (error) {
       console.error("Erro ao gerar relatório:", error);
-      alert("Não foi possível gerar o relatório.");
+      showToast("Não foi possível gerar o relatório.", "error");
     } finally {
       setLoading(false);
     }
@@ -56,12 +70,16 @@ const Relatorios: React.FC = () => {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `relatorio_consolidado_${meses[mes - 1]}_${ano}.html`;
+      const nomeBase = relatorio.colaboradorNome
+        ? `relatorio_${relatorio.colaboradorNome.replace(/\s+/g, "_")}_${MESES[mes - 1]}_${ano}`
+        : `relatorio_consolidado_${MESES[mes - 1]}_${ano}`;
+      link.download = `${nomeBase}.pdf`;
       link.click();
       URL.revokeObjectURL(url);
+      showToast("PDF exportado com sucesso.");
     } catch (error) {
       console.error("Erro ao exportar PDF:", error);
-      alert("Não foi possível exportar o PDF.");
+      showToast("Não foi possível exportar o PDF.", "error");
     } finally {
       setExportingPDF(false);
     }
@@ -75,12 +93,16 @@ const Relatorios: React.FC = () => {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `relatorio_consolidado_${meses[mes - 1]}_${ano}.csv`;
+      const nomeBase = relatorio.colaboradorNome
+        ? `relatorio_${relatorio.colaboradorNome.replace(/\s+/g, "_")}_${MESES[mes - 1]}_${ano}`
+        : `relatorio_consolidado_${MESES[mes - 1]}_${ano}`;
+      link.download = `${nomeBase}.csv`;
       link.click();
       URL.revokeObjectURL(url);
+      showToast("Excel exportado com sucesso.");
     } catch (error) {
       console.error("Erro ao exportar Excel:", error);
-      alert("Não foi possível exportar o Excel.");
+      showToast("Não foi possível exportar o Excel.", "error");
     } finally {
       setExportingExcel(false);
     }
@@ -115,8 +137,9 @@ const Relatorios: React.FC = () => {
               <select
                 value={mes}
                 onChange={(e) => setMes(Number(e.target.value))}
+                aria-label="Mês"
               >
-                {meses.map((mesNome, index) => (
+                {MESES.map((mesNome, index) => (
                   <option key={mesNome} value={index + 1}>
                     {mesNome}
                   </option>
@@ -129,6 +152,7 @@ const Relatorios: React.FC = () => {
               <select
                 value={ano}
                 onChange={(e) => setAno(Number(e.target.value))}
+                aria-label="Ano"
               >
                 {Array.from(
                   { length: 5 },
@@ -136,6 +160,25 @@ const Relatorios: React.FC = () => {
                 ).map((anoOption) => (
                   <option key={anoOption} value={anoOption}>
                     {anoOption}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="relatorios-filter-group relatorios-filter-group-colaborador">
+              <label>
+                <HiUser className="relatorios-filter-label-icon" />
+                Colaborador
+              </label>
+              <select
+                value={colaboradorId}
+                onChange={(e) => setColaboradorId(e.target.value)}
+                aria-label="Filtrar por colaborador"
+              >
+                <option value="">Todos</option>
+                {colaboradoresList.map((colab) => (
+                  <option key={colab.id} value={colab.id}>
+                    {colab.nome}
                   </option>
                 ))}
               </select>
@@ -154,6 +197,13 @@ const Relatorios: React.FC = () => {
 
         {relatorio && (
           <>
+            {relatorio.colaboradorNome && (
+              <div className="relatorios-filter-badge" role="status">
+                <HiUser />
+                <span>Filtrado por: {relatorio.colaboradorNome}</span>
+              </div>
+            )}
+
             <div className="relatorios-summary-cards">
               <div className="relatorios-summary-card">
                 <div className="relatorios-summary-icon verde">
