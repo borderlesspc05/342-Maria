@@ -44,22 +44,32 @@
   to { opacity: 1; }
 }
 
-/* Mobile: ≤767px (sidebar vira drawer, conteúdo full width) */
+/* Mobile: ≤767px (sidebar drawer, header e conteúdo formatados) */
 @media (max-width: 767px) {
   .layout-main,
   .layout-main.sidebar-collapsed {
     margin-left: 0;
+    width: 100%;
+    min-width: 0;
   }
 
   .layout-content {
     margin-top: 56px;
-    padding: 16px 12px;
+    padding-top: 16px;
+    padding-left: max(12px, env(safe-area-inset-left, 0));
+    padding-right: max(12px, env(safe-area-inset-right, 0));
     padding-bottom: max(16px, env(safe-area-inset-bottom));
+    width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+    box-sizing: border-box;
   }
 
   .content-wrapper {
     max-width: 100%;
     min-width: 0;
+    width: 100%;
+    overflow-x: hidden;
   }
 }
 

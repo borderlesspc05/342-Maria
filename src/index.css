@@ -54,3 +54,11 @@ body {
   min-height: 100vh;
   overflow-x: hidden;
 }
+
+/* Mobile: sem padding no body para o header preencher de ponta a ponta */
+@media (max-width: 767px) {
+  body {
+    padding-left: 0;
+    padding-right: 0;
+  }
+}

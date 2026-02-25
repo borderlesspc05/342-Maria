@@ -270,13 +270,20 @@
 }
 
 
-/* Mobile ≤767px: sidebar vira drawer (menu hambúrguer) */
+/* Mobile ≤767px: sidebar como drawer formatado */
 @media (max-width: 767px) {
   .sidebar {
     width: 280px;
-    max-width: 85vw;
+    max-width: calc(100vw - 24px);
     transform: translateX(-100%);
-    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
+    box-shadow: 8px 0 32px rgba(0, 0, 0, 0.2);
+    border-radius: 0 12px 12px 0;
+    top: 0;
+    bottom: 0;
+    height: 100vh;
+    height: 100dvh;
+    padding-top: env(safe-area-inset-top, 0);
+    box-sizing: border-box;
   }
 
   .sidebar.collapsed {
@@ -288,10 +295,38 @@
     z-index: 101;
   }
 
-  /* Área de toque confortável nos itens do menu */
+  .sidebar-header {
+    padding: 16px 20px;
+    min-height: 56px;
+    height: auto;
+    padding-left: max(16px, env(safe-area-inset-left, 0));
+  }
+
+  .sidebar-menu-button {
+    width: 44px;
+    height: 44px;
+    background: rgba(255, 255, 255, 0.9);
+    border: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  }
+
+  .sidebar-menu-button:hover {
+    border-color: transparent;
+  }
+
+  .sidebar-nav {
+    padding: 12px 16px;
+    padding-left: max(16px, env(safe-area-inset-left, 0));
+  }
+
+  .nav-list {
+    gap: 4px;
+  }
+
   .nav-link {
     min-height: var(--touch-min, 44px);
-    padding: 14px 16px;
+    padding: 12px 16px;
+    border-radius: 10px;
   }
 }
 

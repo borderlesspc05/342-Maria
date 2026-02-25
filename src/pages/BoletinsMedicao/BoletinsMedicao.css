@@ -414,9 +414,10 @@
   background: white;
   border-radius: 16px;
   width: 100%;
-  max-width: 800px;
+  max-width: min(960px, calc(100vw - 40px));
   max-height: 90vh;
   overflow-y: auto;
+  overflow-x: hidden;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   animation: modalSlideIn 0.3s ease-out;
 }
@@ -469,19 +470,27 @@
 
 .modal-form {
   padding: 24px;
+  min-width: 0;
+}
+
+/* No modal: formulário em uma coluna para ficar alinhado e sem scroll horizontal */
+.modal-content .form-row {
+  grid-template-columns: 1fr;
 }
 
 .form-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 20px;
   margin-bottom: 20px;
+  min-width: 0;
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-width: 0;
 }
 
 .form-group label {
@@ -501,6 +510,9 @@
   background: white;
   color: #1a202c;
   font-family: inherit;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .form-group input:focus,

@@ -78,13 +78,14 @@ const BoletinsMedicao: React.FC = () => {
     loadStats();
   }, [filters]);
 
-  const loadBoletins = async () => {
+  const loadBoletins = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const data = await boletimMedicaoService.getAll(filters);
       setBoletins(data);
     } catch (error) {
       console.error("Erro ao carregar boletins:", error);
+      if (!silent) showToast("Erro ao atualizar a lista.", "error");
     } finally {
       setLoading(false);
     }
@@ -470,7 +471,7 @@ const BoletinsMedicao: React.FC = () => {
             onSave={() => {
               setShowModal(false);
               setEditingBoletim(null);
-              loadBoletins();
+              loadBoletins(true);
               loadStats();
             }}
           />
