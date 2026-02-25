@@ -18,6 +18,12 @@
   --theme-primary-shadow: rgba(59, 130, 246, 0.35);
   --theme-accent: #3b82f6;
   --theme-accent-hover: #2563eb;
+  /* Breakpoints (para referência em media queries) */
+  --bp-desktop: 1280px;
+  --bp-tablet-max: 1279px;
+  --bp-mobile-max: 767px;
+  /* Área de toque mínima (WCAG / mobile UX) */
+  --touch-min: 44px;
 }
 
 * {
@@ -29,6 +35,8 @@
 html {
   overflow-x: hidden;
   -webkit-tap-highlight-color: transparent;
+  /* Tipografia fluida base (legibilidade sem zoom em mobile) */
+  font-size: clamp(15px, 2.2vw, 16px);
 }
 
 body {

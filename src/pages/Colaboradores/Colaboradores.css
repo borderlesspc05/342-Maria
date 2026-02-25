@@ -289,7 +289,7 @@
   transform: none;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .colaboradores-page .page-header {
     flex-direction: column;
     align-items: stretch;

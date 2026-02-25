@@ -33,7 +33,7 @@
   left: 80px;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .financeiro-container::after {
     left: 0;
     top: 56px;
@@ -61,7 +61,7 @@
   left: 80px;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .financeiro-container::before {
     left: 0;
   }
@@ -699,7 +699,7 @@
 }
 
 /* Responsive */
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .financeiro-container {
     padding: 16px;
   }

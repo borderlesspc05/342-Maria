@@ -19,6 +19,152 @@
   margin: 0;
 }
 
+.relatorios-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 24px;
+  padding: 4px;
+  background: rgba(241, 245, 249, 0.8);
+  border-radius: 12px;
+  width: fit-content;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.relatorios-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #64748b;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.relatorios-tab:hover {
+  color: #1e293b;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.relatorios-tab:focus-visible {
+  outline: 2px solid rgba(59, 130, 246, 0.6);
+  outline-offset: 2px;
+}
+
+.relatorios-tab.active {
+  color: #1e40af;
+  background: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.relatorios-tab-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.relatorios-tab-icon.spin,
+.relatorios-generate-btn .spin {
+  animation: relatorios-spin 0.8s linear infinite;
+}
+
+@keyframes relatorios-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.relatorios-panel {
+  animation: relatorios-panel-in 0.3s ease-out;
+}
+
+@keyframes relatorios-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.relatorios-doc-vencidos-summary {
+  margin-bottom: 20px;
+}
+
+.relatorios-doc-vencidos-count {
+  font-size: 14px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.relatorios-table-card {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e2e8f0;
+  margin-bottom: 32px;
+  overflow: hidden;
+}
+
+.relatorios-table-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.relatorios-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.relatorios-table th,
+.relatorios-table td {
+  padding: 14px 16px;
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.relatorios-table th {
+  font-weight: 600;
+  color: #475569;
+  background: #f8fafc;
+  white-space: nowrap;
+}
+
+.relatorios-table tbody tr {
+  transition: background-color 0.2s ease;
+}
+
+.relatorios-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.relatorios-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.relatorios-doc-status {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.relatorios-doc-status--vencido {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.relatorios-doc-status--vencendo {
+  background: #fffbeb;
+  color: #d97706;
+}
+
 .relatorios-filters-card {
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(20px);
@@ -178,8 +324,8 @@
 
 .relatorios-summary-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 16px;
   margin-bottom: 32px;
 }
 
@@ -416,7 +562,7 @@
 
 @media (max-width: 1200px) {
   .relatorios-summary-cards {
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   }
   
   .relatorios-summary-value {
@@ -428,7 +574,31 @@
   }
 }
 
-@media (max-width: 768px) {
+/* Mobile ≤767px: filtros em coluna, cards 100%, tabela scroll horizontal */
+@media (max-width: 767px) {
+  .relatorios-tabs {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .relatorios-tab {
+    flex: 1 1 auto;
+    min-width: 0;
+    justify-content: center;
+    min-height: 44px;
+  }
+
+  .relatorios-table-wrapper {
+    -webkit-overflow-scrolling: touch;
+    overflow-x: auto;
+  }
+
+  .relatorios-table th,
+  .relatorios-table td {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+
   .relatorios-filters-content {
     flex-direction: column;
     align-items: stretch;
@@ -438,15 +608,26 @@
     min-width: 100%;
   }
 
+  .relatorios-filter-group select {
+    min-height: 44px;
+  }
+
+  .relatorios-generate-btn {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+  }
+
   .relatorios-summary-cards {
     grid-template-columns: 1fr;
   }
-  
+
   .relatorios-summary-card {
     padding: 18px;
     gap: 12px;
+    width: 100%;
   }
-  
+
   .relatorios-summary-icon {
     width: 44px;
     height: 44px;
@@ -454,15 +635,15 @@
     min-height: 44px;
     font-size: 20px;
   }
-  
+
   .relatorios-summary-content h3 {
     font-size: 12px;
   }
-  
+
   .relatorios-summary-value {
     font-size: 18px;
   }
-  
+
   .relatorios-summary-value.total-value {
     font-size: 20px;
   }
@@ -477,19 +658,28 @@
 
   .relatorios-export-btn {
     width: 100%;
+    min-height: 44px;
     justify-content: center;
   }
-  
+
   .relatorios-title {
-    font-size: 24px;
+    font-size: clamp(1.25rem, 4vw, 1.5rem);
   }
-  
+
   .relatorios-subtitle {
     font-size: 14px;
   }
 }
 
 @media (max-width: 480px) {
+  .relatorios-tab .relatorios-tab-label {
+    display: none;
+  }
+
+  .relatorios-tab {
+    padding: 12px 16px;
+  }
+
   .relatorios-summary-card {
     padding: 16px;
     gap: 10px;

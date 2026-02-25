@@ -710,7 +710,7 @@
   margin-top: 24px;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .lancamentos-container {
     min-width: 0;
   }

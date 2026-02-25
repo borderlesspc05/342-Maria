@@ -104,7 +104,7 @@
   color: #2563eb;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .toast-container {
     left: 12px;
     right: 12px;

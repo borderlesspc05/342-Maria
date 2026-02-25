@@ -270,7 +270,8 @@
 }
 
 
-@media (max-width: 768px) {
+/* Mobile ≤767px: sidebar vira drawer (menu hambúrguer) */
+@media (max-width: 767px) {
   .sidebar {
     width: 280px;
     max-width: 85vw;
@@ -278,15 +279,19 @@
     box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
   }
 
-  /* No mobile, "collapsed" = menu fechado (escondido) */
   .sidebar.collapsed {
     transform: translateX(-100%);
   }
 
-  /* Menu aberto no mobile = overlay com largura total */
   .sidebar:not(.collapsed) {
     transform: translateX(0);
     z-index: 101;
+  }
+
+  /* Área de toque confortável nos itens do menu */
+  .nav-link {
+    min-height: var(--touch-min, 44px);
+    padding: 14px 16px;
   }
 }
 

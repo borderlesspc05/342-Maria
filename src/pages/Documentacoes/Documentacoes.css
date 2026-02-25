@@ -31,7 +31,7 @@
   left: 80px;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .documentacoes-container::after {
     left: 0;
   }
@@ -58,7 +58,7 @@
   left: 80px;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .documentacoes-container::before {
     left: 0;
   }
@@ -819,7 +819,7 @@
   margin: 0;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .documentacoes-container::after,
   .documentacoes-container::before {
     top: 56px;

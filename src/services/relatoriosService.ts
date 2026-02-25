@@ -9,6 +9,8 @@ import {
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { db } from "../lib/firebaseconfig";
+import { documentacoesService } from "./documentacoesService";
+import type { Documento } from "../types/documentacoes";
 import type {
   RelatorioConsolidado,
   ResumoRelatorio,
@@ -44,11 +46,13 @@ export const relatoriosService = {
     const inicioMes = new Date(ano, mes - 1, 1);
     const fimMes = new Date(ano, mes, 0, 23, 59, 59, 999);
 
-    const [premiosData, boletinsData, lancamentosData] = await Promise.all([
-      this.getPremiosPorPeriodo(inicioMes, fimMes, colaboradorId),
-      this.getBoletinsPorPeriodo(inicioMes, fimMes),
-      this.getRecebimentosPorPeriodo(inicioMes, fimMes, colaboradorId),
-    ]);
+    const [premiosData, boletinsData, lancamentosData, documentosList] =
+      await Promise.all([
+        this.getPremiosPorPeriodo(inicioMes, fimMes, colaboradorId),
+        this.getBoletinsPorPeriodo(inicioMes, fimMes),
+        this.getRecebimentosPorPeriodo(inicioMes, fimMes, colaboradorId),
+        documentacoesService.list(),
+      ]);
 
     const resumoPremios: ResumoPremios = {
       quantidade: premiosData.length,
@@ -83,18 +87,41 @@ export const relatoriosService = {
       ).length,
     };
 
+    const documentosFiltrados = colaboradorId
+      ? documentosList.filter((d) => d.colaboradorId === colaboradorId)
+      : documentosList;
+
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const seteDias = new Date(hoje);
+    seteDias.setDate(seteDias.getDate() + 7);
+    const trintaDias = new Date(hoje);
+    trintaDias.setDate(trintaDias.getDate() + 30);
+
     const resumoDocumentacoes: ResumoDocumentacoes = {
-      total: 0,
-      vencidas: 0,
-      vencendoEm7Dias: 0,
-      vencendoEm30Dias: 0,
-      emDia: 0,
+      total: documentosFiltrados.length,
+      vencidas: documentosFiltrados.filter((d) => d.status === "Vencido").length,
+      vencendoEm7Dias: documentosFiltrados.filter(
+        (d) =>
+          d.status === "Vencendo" &&
+          d.dataValidade >= hoje &&
+          d.dataValidade <= seteDias
+      ).length,
+      vencendoEm30Dias: documentosFiltrados.filter(
+        (d) =>
+          d.dataValidade >= hoje &&
+          d.dataValidade <= trintaDias &&
+          d.status !== "Vencido"
+      ).length,
+      emDia: documentosFiltrados.filter(
+        (d) => d.status === "Válido" && d.dataValidade > trintaDias
+      ).length,
     };
 
     const resumo: ResumoRelatorio = {
       totalPremiosPagos: resumoPremios.valorTotal,
       totalBoletinsEmitidos: resumoBoletins.valorTotal,
-      totalDocumentacoesVencidas: 0,
+      totalDocumentacoesVencidas: resumoDocumentacoes.vencidas,
       totalRecebimentos: resumoRecebimentos.valorTotal,
       totalGeral:
         resumoPremios.valorTotal +
@@ -283,6 +310,25 @@ export const relatoriosService = {
         ],
       },
       {
+        title: "Documentações",
+        head: [
+          "Total",
+          "Vencidas",
+          "Vencendo 7 dias",
+          "Vencendo 30 dias",
+          "Em dia",
+        ],
+        body: [
+          [
+            relatorio.documentacoes.total,
+            relatorio.documentacoes.vencidas,
+            relatorio.documentacoes.vencendoEm7Dias,
+            relatorio.documentacoes.vencendoEm30Dias,
+            relatorio.documentacoes.emDia,
+          ],
+        ],
+      },
+      {
         title: "Recebimentos",
         head: ["Quantidade", "Valor total", "Recebidos", "Pendentes"],
         body: [
@@ -368,6 +414,22 @@ export const relatoriosService = {
         relatorio.boletins.aguardandoAssinatura.toString(),
       ],
       [],
+      ["DOCUMENTAÇÕES"],
+      [
+        "Total",
+        "Vencidas",
+        "Vencendo em 7 dias",
+        "Vencendo em 30 dias",
+        "Em dia",
+      ],
+      [
+        relatorio.documentacoes.total.toString(),
+        relatorio.documentacoes.vencidas.toString(),
+        relatorio.documentacoes.vencendoEm7Dias.toString(),
+        relatorio.documentacoes.vencendoEm30Dias.toString(),
+        relatorio.documentacoes.emDia.toString(),
+      ],
+      [],
       ["RECEBIMENTOS"],
       ["Quantidade", "Valor Total", "Recebidos", "Pendentes"],
       [
@@ -385,6 +447,134 @@ export const relatoriosService = {
       .join("\n");
 
     return new Blob(["\uFEFF" + csvContent], {
+      type: "text/csv;charset=utf-8;",
+    });
+  },
+
+  /**
+   * Retorna documentos vencidos e vencendo para o relatório dedicado.
+   * Usa list() para respeitar fallback local quando Firebase não está configurado.
+   */
+  async getDocumentosParaRelatorioVencidos(
+    colaboradorId?: string
+  ): Promise<Documento[]> {
+    const todos = await documentacoesService.list();
+    const filtrados = todos.filter(
+      (d) => d.status === "Vencido" || d.status === "Vencendo"
+    );
+    if (colaboradorId) {
+      return filtrados.filter((d) => d.colaboradorId === colaboradorId);
+    }
+    return filtrados;
+  },
+
+  async exportarDocumentosVencidosPDF(
+    documentos: Documento[],
+    incluirVencendo: boolean
+  ): Promise<Blob> {
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    const pageWidth = doc.getPageWidth();
+    let y = 18;
+
+    doc.setFontSize(18);
+    doc.setTextColor(30, 64, 175);
+    doc.text("Relatório de Documentos Vencidos", 14, y);
+    y += 10;
+
+    doc.setFontSize(10);
+    doc.setTextColor(0, 0, 0);
+    doc.text(
+      `Data de geração: ${new Date().toLocaleDateString("pt-BR")}`,
+      14,
+      y
+    );
+    y += 6;
+    doc.text(
+      `Total de registros: ${documentos.length}${incluirVencendo ? " (vencidos + vencendo)" : ""}`,
+      14,
+      y
+    );
+    y += 12;
+
+    if (documentos.length === 0) {
+      doc.setFontSize(11);
+      doc.text("Nenhum documento vencido ou vencendo no momento.", 14, y);
+      return doc.output("blob");
+    }
+
+    doc.setFontSize(12);
+    doc.setTextColor(45, 55, 72);
+    doc.text("Listagem", 14, y);
+    y += 8;
+
+    const headers = [
+      "Colaborador",
+      "Tipo",
+      "Validade",
+      "Status",
+    ];
+    const body = documentos.map((d) => [
+      d.colaboradorNome || "",
+      d.tipoDocumento || "",
+      new Date(d.dataValidade).toLocaleDateString("pt-BR"),
+      d.status || "",
+    ]);
+
+    autoTable(doc, {
+      startY: y,
+      head: [headers],
+      body,
+      theme: "grid",
+      headStyles: { fillColor: [66, 133, 244] },
+      margin: { left: 14 },
+      styles: { fontSize: 9 },
+    });
+    y = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 12;
+
+    if (y > 250 && documentos.length > 0) {
+      doc.addPage();
+      y = 18;
+    }
+
+    doc.setFontSize(8);
+    doc.setTextColor(148, 163, 184);
+    doc.text(
+      `Gerado em ${new Date().toLocaleString("pt-BR")} — Sistema de Gestão`,
+      pageWidth / 2,
+      doc.getPageHeight() - 10,
+      { align: "center" }
+    );
+
+    return doc.output("blob");
+  },
+
+  async exportarDocumentosVencidosExcel(documentos: Documento[]): Promise<Blob> {
+    const headers = [
+      "Colaborador",
+      "CPF",
+      "Cargo",
+      "Setor",
+      "Tipo Documento",
+      "Nº Documento",
+      "Data Validade",
+      "Status",
+    ];
+    const rows = documentos.map((d) => [
+      d.colaboradorNome ?? "",
+      d.cpf ?? "",
+      d.cargo ?? "",
+      d.setor ?? "",
+      d.tipoDocumento ?? "",
+      d.numeroDocumento ?? "",
+      new Date(d.dataValidade).toLocaleDateString("pt-BR"),
+      d.status ?? "",
+    ]);
+    const csvRows = [headers, ...rows]
+      .map((row) =>
+        row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(";")
+      )
+      .join("\n");
+    return new Blob(["\uFEFF" + csvRows], {
       type: "text/csv;charset=utf-8;",
     });
   },

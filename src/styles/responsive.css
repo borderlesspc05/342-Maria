@@ -1,0 +1,41 @@
+/**
+ * Adaptações responsivas globais (mobile-first)
+ * Breakpoints: Desktop ≥1280px (intocado) | Tablet 768–1279px | Mobile ≤767px
+ * Apenas regras reutilizáveis; páginas mantêm seus próprios media queries.
+ */
+
+/* ---- Tablet (768px – 1279px): ajustes sem alterar estrutura ---- */
+@media (max-width: 1279px) {
+  .content-wrapper {
+    max-width: 100%;
+    padding-left: env(safe-area-inset-left, 0);
+    padding-right: env(safe-area-inset-right, 0);
+  }
+}
+
+/* ---- Mobile (≤767px): overflow, toque, tabelas ---- */
+@media (max-width: 767px) {
+  .content-wrapper {
+    min-width: 0;
+    overflow-x: hidden;
+  }
+
+  .nav-link,
+  button.icon-button,
+  button.menu-toggle,
+  .menu-item {
+    min-height: var(--touch-min, 44px);
+  }
+
+  /* Tabelas: scroll horizontal quando necessário (evitar quebra de layout) */
+  [class*="-table-wrapper"],
+  [class*="-table-card"] {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  [class*="-table-wrapper"] table,
+  [class*="-table-card"] table {
+    min-width: 400px;
+  }
+}

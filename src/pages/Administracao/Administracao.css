@@ -357,7 +357,7 @@
   background: #e2e8f0;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .administracao-page .page-header {
     flex-direction: column;
   }

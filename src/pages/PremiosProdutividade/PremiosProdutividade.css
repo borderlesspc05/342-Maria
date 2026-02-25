@@ -31,7 +31,7 @@
   left: 80px;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .premios-container::after {
     left: 0;
   }
@@ -58,7 +58,7 @@
   left: 80px;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .premios-container::before {
     left: 0;
   }
@@ -599,7 +599,7 @@
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .premios-table {
     font-size: 12px;
     min-width: 660px;

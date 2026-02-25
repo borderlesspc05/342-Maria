@@ -498,7 +498,7 @@
 }
 
 /* Responsivo */
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .notificacoes-page {
     padding: 16px;
   }

@@ -13,7 +13,7 @@ const SIDEBAR_KEY = "sidebar_collapsed";
 
 const getInitialCollapsed = (): boolean => {
   if (typeof window === "undefined") return true;
-  if (window.innerWidth <= 768) return true;
+  if (window.innerWidth <= 767) return true;
   const saved = localStorage.getItem(SIDEBAR_KEY);
   /* Se nunca foi salvo, começa fechada por padrão */
   return saved !== null ? saved === "true" : true;
@@ -22,14 +22,14 @@ const getInitialCollapsed = (): boolean => {
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(getInitialCollapsed);
   const [isMobile, setIsMobile] = useState(
-    () => typeof window !== "undefined" && window.innerWidth <= 768
+    () => typeof window !== "undefined" && window.innerWidth <= 767
   );
   const location = useLocation();
 
   const toggleSidebar = () => {
     setSidebarCollapsed((prev) => {
       const next = !prev;
-      if (typeof window !== "undefined" && window.innerWidth > 768) {
+      if (typeof window !== "undefined" && window.innerWidth > 767) {
         localStorage.setItem(SIDEBAR_KEY, String(next));
       }
       return next;
@@ -42,7 +42,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   useEffect(() => {
     const handleResize = () => {
-      const mobile = window.innerWidth <= 768;
+      const mobile = window.innerWidth <= 767;
       setIsMobile(mobile);
       if (mobile) {
         setSidebarCollapsed(true);

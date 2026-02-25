@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Layout } from "../../components/Layout";
 import {
   HiDocumentReport,
@@ -7,12 +7,15 @@ import {
   HiChartBar,
   HiCalendar,
   HiUser,
+  HiExclamationCircle,
+  HiRefresh,
 } from "react-icons/hi";
 import { relatoriosService } from "../../services/relatoriosService";
 import { colaboradorService } from "../../services/colaboradorService";
 import { useToast } from "../../contexts/ToastContext";
 import type { RelatorioConsolidado } from "../../types/relatorios";
 import type { Colaborador } from "../../types/premioProdutividade";
+import type { Documento } from "../../types/documentacoes";
 import "./Relatorios.css";
 
 const MESES = [
@@ -20,9 +23,13 @@ const MESES = [
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ];
 
+type TabRelatorio = "consolidado" | "documentos-vencidos";
+
 const Relatorios: React.FC = () => {
   const hoje = new Date();
   const { showToast } = useToast();
+  const [activeTab, setActiveTab] = useState<TabRelatorio>("consolidado");
+
   const [mes, setMes] = useState(hoje.getMonth() + 1);
   const [ano, setAno] = useState(hoje.getFullYear());
   const [colaboradorId, setColaboradorId] = useState<string>("");
@@ -32,11 +39,85 @@ const Relatorios: React.FC = () => {
   const [exportingPDF, setExportingPDF] = useState(false);
   const [exportingExcel, setExportingExcel] = useState(false);
 
+  const [docVencidosColaboradorId, setDocVencidosColaboradorId] = useState<string>("");
+  const [documentosVencidos, setDocumentosVencidos] = useState<Documento[]>([]);
+  const [loadingDocVencidos, setLoadingDocVencidos] = useState(false);
+  const [exportingDocPDF, setExportingDocPDF] = useState(false);
+  const [exportingDocExcel, setExportingDocExcel] = useState(false);
+  const [docVencidosLoaded, setDocVencidosLoaded] = useState(false);
+
   useEffect(() => {
     colaboradorService.list().then(setColaboradoresList).catch(() => {
       showToast("Não foi possível carregar a lista de colaboradores.", "error");
     });
   }, [showToast]);
+
+  const handleCarregarDocumentosVencidos = useCallback(async () => {
+    try {
+      setLoadingDocVencidos(true);
+      setDocumentosVencidos([]);
+      const lista = await relatoriosService.getDocumentosParaRelatorioVencidos(
+        docVencidosColaboradorId || undefined
+      );
+      setDocumentosVencidos(lista);
+      setDocVencidosLoaded(true);
+      showToast(
+        lista.length > 0
+          ? `${lista.length} documento(s) vencido(s) ou vencendo carregado(s).`
+          : "Nenhum documento vencido ou vencendo no momento."
+      );
+    } catch (error) {
+      console.error("Erro ao carregar documentos vencidos:", error);
+      showToast("Não foi possível carregar o relatório de documentos.", "error");
+    } finally {
+      setLoadingDocVencidos(false);
+    }
+  }, [docVencidosColaboradorId, showToast]);
+
+  const handleExportDocVencidosPDF = async () => {
+    if (documentosVencidos.length === 0) return;
+    try {
+      setExportingDocPDF(true);
+      const blob = await relatoriosService.exportarDocumentosVencidosPDF(
+        documentosVencidos,
+        true
+      );
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `documentos_vencidos_${new Date().toISOString().slice(0, 10)}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+      showToast("PDF exportado com sucesso.");
+    } catch (error) {
+      console.error("Erro ao exportar PDF:", error);
+      showToast("Não foi possível exportar o PDF.", "error");
+    } finally {
+      setExportingDocPDF(false);
+    }
+  };
+
+  const handleExportDocVencidosExcel = async () => {
+    if (documentosVencidos.length === 0) return;
+    try {
+      setExportingDocExcel(true);
+      const blob = await relatoriosService.exportarDocumentosVencidosExcel(
+        documentosVencidos
+      );
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `documentos_vencidos_${new Date().toISOString().slice(0, 10)}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+      showToast("Planilha exportada com sucesso.");
+    } catch (error) {
+      console.error("Erro ao exportar Excel:", error);
+      showToast("Não foi possível exportar a planilha.", "error");
+    } finally {
+      setExportingDocExcel(false);
+    }
+  };
 
   const handleGerarRelatorio = async () => {
     try {
@@ -121,11 +202,176 @@ const Relatorios: React.FC = () => {
           <div>
             <h1 className="relatorios-title">Relatórios e Controle Geral</h1>
             <p className="relatorios-subtitle">
-              Gere relatórios consolidados mensais com todos os dados do sistema
+              {activeTab === "consolidado"
+                ? "Gere relatórios consolidados mensais com todos os dados do sistema"
+                : "Consulte e exporte documentos vencidos ou próximos do vencimento"}
             </p>
           </div>
         </div>
 
+        <div className="relatorios-tabs" role="tablist" aria-label="Tipo de relatório">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "consolidado"}
+            aria-controls="relatorio-consolidado-panel"
+            id="tab-consolidado"
+            className={`relatorios-tab ${activeTab === "consolidado" ? "active" : ""}`}
+            onClick={() => {
+              setActiveTab("consolidado");
+              setDocVencidosLoaded(false);
+            }}
+          >
+            <HiChartBar className="relatorios-tab-icon" aria-hidden />
+            <span className="relatorios-tab-label">Relatório consolidado</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "documentos-vencidos"}
+            aria-controls="relatorio-doc-vencidos-panel"
+            id="tab-documentos-vencidos"
+            className={`relatorios-tab ${activeTab === "documentos-vencidos" ? "active" : ""}`}
+            onClick={() => setActiveTab("documentos-vencidos")}
+          >
+            <HiExclamationCircle className="relatorios-tab-icon" aria-hidden />
+            <span className="relatorios-tab-label">Documentos vencidos</span>
+          </button>
+        </div>
+
+        {activeTab === "documentos-vencidos" && (
+          <div
+            id="relatorio-doc-vencidos-panel"
+            role="tabpanel"
+            aria-labelledby="tab-documentos-vencidos"
+            className="relatorios-panel"
+          >
+            <div className="relatorios-filters-card">
+              <div className="relatorios-filters-header">
+                <HiExclamationCircle className="relatorios-filter-icon" />
+                <h2>Filtros</h2>
+              </div>
+              <div className="relatorios-filters-content">
+                <div className="relatorios-filter-group relatorios-filter-group-colaborador">
+                  <label>
+                    <HiUser className="relatorios-filter-label-icon" />
+                    Colaborador
+                  </label>
+                  <select
+                    value={docVencidosColaboradorId}
+                    onChange={(e) => setDocVencidosColaboradorId(e.target.value)}
+                    aria-label="Filtrar por colaborador"
+                  >
+                    <option value="">Todos</option>
+                    {colaboradoresList.map((colab) => (
+                      <option key={colab.id} value={colab.id}>
+                        {colab.nome}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  className="relatorios-generate-btn"
+                  onClick={handleCarregarDocumentosVencidos}
+                  disabled={loadingDocVencidos}
+                >
+                  <HiRefresh
+                    className={loadingDocVencidos ? "spin" : ""}
+                    aria-hidden
+                  />
+                  {loadingDocVencidos ? "Carregando..." : "Carregar relatório"}
+                </button>
+              </div>
+            </div>
+
+            {docVencidosLoaded && (
+              <>
+                <div className="relatorios-doc-vencidos-summary">
+                  <span className="relatorios-doc-vencidos-count">
+                    {documentosVencidos.length} documento(s) vencido(s) ou vencendo
+                  </span>
+                </div>
+
+                {documentosVencidos.length > 0 ? (
+                  <div className="relatorios-table-card">
+                    <div className="relatorios-table-wrapper">
+                      <table className="relatorios-table" role="table">
+                        <thead>
+                          <tr>
+                            <th scope="col">Colaborador</th>
+                            <th scope="col">Tipo</th>
+                            <th scope="col">Validade</th>
+                            <th scope="col">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {documentosVencidos.map((doc) => (
+                            <tr key={doc.id}>
+                              <td>{doc.colaboradorNome}</td>
+                              <td>{doc.tipoDocumento}</td>
+                              <td>
+                                {new Date(doc.dataValidade).toLocaleDateString("pt-BR")}
+                              </td>
+                              <td>
+                                <span
+                                  className={`relatorios-doc-status relatorios-doc-status--${doc.status === "Vencido" ? "vencido" : "vencendo"}`}
+                                >
+                                  {doc.status}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="relatorios-empty" role="status">
+                    <HiExclamationCircle className="relatorios-empty-icon" />
+                    <p>Nenhum documento vencido ou vencendo no momento.</p>
+                  </div>
+                )}
+
+                <div className="relatorios-export-actions">
+                  <button
+                    type="button"
+                    className="relatorios-export-btn pdf"
+                    onClick={handleExportDocVencidosPDF}
+                    disabled={exportingDocPDF || documentosVencidos.length === 0}
+                  >
+                    <HiDownload />
+                    {exportingDocPDF ? "Exportando..." : "Exportar PDF"}
+                  </button>
+                  <button
+                    type="button"
+                    className="relatorios-export-btn excel"
+                    onClick={handleExportDocVencidosExcel}
+                    disabled={exportingDocExcel || documentosVencidos.length === 0}
+                  >
+                    <HiDownload />
+                    {exportingDocExcel ? "Exportando..." : "Exportar Excel"}
+                  </button>
+                </div>
+              </>
+            )}
+
+            {docVencidosLoaded === false && !loadingDocVencidos && (
+              <div className="relatorios-empty">
+                <HiDocumentReport className="relatorios-empty-icon" />
+                <p>Use os filtros e clique em &quot;Carregar relatório&quot; para listar documentos vencidos ou vencendo.</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === "consolidado" && (
+          <div
+            id="relatorio-consolidado-panel"
+            role="tabpanel"
+            aria-labelledby="tab-consolidado"
+            className="relatorios-panel"
+          >
         <div className="relatorios-filters-card">
           <div className="relatorios-filters-header">
             <HiCalendar className="relatorios-filter-icon" />
@@ -437,6 +683,8 @@ const Relatorios: React.FC = () => {
           <div className="relatorios-empty">
             <HiDocumentReport className="relatorios-empty-icon" />
             <p>Selecione o período e gere um relatório consolidado</p>
+          </div>
+        )}
           </div>
         )}
       </div>

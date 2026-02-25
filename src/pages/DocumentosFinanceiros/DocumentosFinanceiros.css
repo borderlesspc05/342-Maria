@@ -398,7 +398,7 @@
 }
 
 /* Responsivo */
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .documentos-financeiros-page {
     padding: 16px;
   }
