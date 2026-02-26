@@ -17,4 +17,5 @@ export const paths = {
   documentosFinanceiros: "/documentos-financeiros",
   perfil: "/perfil",
   configuracoes: "/Configuracoes",
+  backup: "/backup",
 };

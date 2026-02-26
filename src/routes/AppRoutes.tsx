@@ -18,6 +18,7 @@ import Notificacoes from "../pages/Notificacoes/Notificacoes";
 import DocumentosFinanceiros from "../pages/DocumentosFinanceiros/DocumentosFinanceiros";
 import Perfil from "../pages/Perfil/Perfil";
 import Configuracoes from "../pages/Configuracoes/Configuracoes";
+import Backup from "../pages/Backup/Backup";
 
 export function AppRoutes() {
   return (
@@ -132,6 +133,14 @@ export function AppRoutes() {
           element={
             <ProtectedRoutes allowedRoles={["admin", "gestor"]}>
               <DocumentosFinanceiros />
+            </ProtectedRoutes>
+          }
+        />
+        <Route
+          path={paths.backup}
+          element={
+            <ProtectedRoutes allowedRoles={["admin"]}>
+              <Backup />
             </ProtectedRoutes>
           }
         />

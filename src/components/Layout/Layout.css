@@ -2,6 +2,8 @@
   display: flex;
   min-height: 100vh;
   background: transparent;
+  overflow-x: hidden;
+  max-width: 100vw;
 }
 
 .layout-main {
@@ -20,7 +22,7 @@
 .layout-content {
   flex: 1;
   margin-top: 70px;
-  padding: 32px;
+  padding: 16px 24px 32px;
   width: 100%;
 }
 
@@ -44,8 +46,9 @@
   to { opacity: 1; }
 }
 
-/* Mobile: ≤767px (sidebar drawer, header e conteúdo formatados) */
-@media (max-width: 767px) {
+/* ========== RESPONSIVIDADE MOBILE/TABLET ========== */
+/* Breakpoint 768px: sidebar drawer, conteúdo em coluna */
+@media (max-width: 768px) {
   .layout-main,
   .layout-main.sidebar-collapsed {
     margin-left: 0;
@@ -70,6 +73,16 @@
     min-width: 0;
     width: 100%;
     overflow-x: hidden;
+  }
+}
+
+/* Breakpoint 480px: espaçamentos ainda menores */
+@media (max-width: 480px) {
+  .layout-content {
+    padding-left: max(8px, env(safe-area-inset-left, 0));
+    padding-right: max(8px, env(safe-area-inset-right, 0));
+    padding-top: 12px;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
   }
 }
 

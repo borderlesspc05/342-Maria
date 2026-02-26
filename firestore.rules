@@ -36,6 +36,15 @@ service cloud.firestore {
     match /colaboradores/{docId} {
       allow read, write: if request.auth != null;
     }
+    match /config/{docId} {
+      allow read, write: if request.auth != null;
+    }
+    match /backups/{backupId} {
+      allow read, write: if request.auth != null;
+    }
+    match /backups/{backupId}/chunks/{chunkId} {
+      allow read, write: if request.auth != null;
+    }
     // Bloqueia qualquer outra coleção não listada
     match /{document=**} {
       allow read, write: if false;

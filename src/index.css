@@ -19,9 +19,10 @@
   --theme-accent: #3b82f6;
   --theme-accent-hover: #2563eb;
   /* Breakpoints (para referência em media queries) */
-  --bp-desktop: 1280px;
-  --bp-tablet-max: 1279px;
-  --bp-mobile-max: 767px;
+  --bp-desktop: 1024px;
+  --bp-tablet-max: 1023px;
+  --bp-mobile-max: 768px;
+  --bp-extra-small: 480px;
   /* Área de toque mínima (WCAG / mobile UX) */
   --touch-min: 44px;
 }
@@ -55,10 +56,18 @@ body {
   overflow-x: hidden;
 }
 
-/* Mobile: sem padding no body para o header preencher de ponta a ponta */
-@media (max-width: 767px) {
+/* ========== RESPONSIVIDADE GLOBAL ========== */
+/* Mobile ≤768px: sem padding no body para o header de ponta a ponta */
+@media (max-width: 768px) {
   body {
     padding-left: 0;
     padding-right: 0;
+  }
+}
+
+/* Extra small ≤480px */
+@media (max-width: 480px) {
+  html {
+    font-size: 15px;
   }
 }

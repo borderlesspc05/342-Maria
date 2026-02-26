@@ -12,7 +12,9 @@ import {
   HiBell,
   HiMenu,
   HiShieldCheck,
+  HiCloudUpload,
 } from "react-icons/hi";
+import { paths } from "../../routes/paths";
 import "./Sidebar.css";
 
 interface SidebarProps {
@@ -81,10 +83,16 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
       roles: ["admin", "gestor"],
     },
     {
-      path: "/documentos-financeiros",
+      path: paths.documentosFinanceiros,
       icon: HiDocumentText,
       label: "Documentos Financeiros",
       roles: ["admin", "gestor"],
+    },
+    {
+      path: paths.backup,
+      icon: HiCloudUpload,
+      label: "Backup",
+      roles: ["admin"],
     },
   ];
 

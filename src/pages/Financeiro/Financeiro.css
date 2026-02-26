@@ -1,6 +1,6 @@
 /* Financeiro Container - fundo alinhado à Dashboard/Boletins */
 .financeiro-container {
-  padding: 24px;
+  padding: 0 20px 24px;
   max-width: 1600px;
   margin: 0 auto;
   position: relative;
@@ -82,13 +82,13 @@
 
 .financeiro-title {
   font-size: 28px;
-  font-weight: 700;
+  font-weight: 600;
   color: #1a202c;
   margin: 0 0 8px 0;
 }
 
 .financeiro-subtitle {
-  font-size: 14px;
+  font-size: 16px;
   color: #718096;
   margin: 0;
 }
