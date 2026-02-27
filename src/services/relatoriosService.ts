@@ -36,6 +36,20 @@ function formatCurrency(value: number): string {
   }).format(value);
 }
 
+/** Retorna largura e altura da página em mm (jsPDF não expõe getPageWidth/getPageHeight nos tipos). */
+function getPageDimensions(doc: jsPDF): { width: number; height: number } {
+  const internal = (doc as unknown as { internal: { pageSize: { getWidth(): number; getHeight(): number } } }).internal;
+  return {
+    width: internal.pageSize.getWidth(),
+    height: internal.pageSize.getHeight(),
+  };
+}
+
+/** Retorna o finalY do último autoTable (jspdf-autotable). */
+function getLastAutoTableFinalY(doc: jsPDF): number {
+  return (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable?.finalY ?? 0;
+}
+
 export const relatoriosService = {
   async gerarRelatorioConsolidado(
     mes: number,
@@ -234,7 +248,7 @@ export const relatoriosService = {
 
   async exportarRelatorioPDF(relatorio: RelatorioConsolidado): Promise<Blob> {
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-    const pageWidth = doc.getPageWidth();
+    const { width: pageWidth, height: pageHeight } = getPageDimensions(doc);
     let y = 18;
 
     doc.setFontSize(18);
@@ -280,7 +294,7 @@ export const relatoriosService = {
       headStyles: { fillColor: [66, 133, 244] },
       margin: { left: 14 },
     });
-    y = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 12;
+    y = getLastAutoTableFinalY(doc) + 12;
 
     const tables: Array<{ title: string; head: string[]; body: (string | number)[][] }> = [
       {
@@ -358,7 +372,7 @@ export const relatoriosService = {
         headStyles: { fillColor: [100, 116, 139] },
         margin: { left: 14 },
       });
-      y = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 12;
+      y = getLastAutoTableFinalY(doc) + 12;
     }
 
     doc.setFontSize(8);
@@ -366,7 +380,7 @@ export const relatoriosService = {
     doc.text(
       `Gerado em ${new Date().toLocaleString("pt-BR")} — Sistema de Gestão`,
       pageWidth / 2,
-      doc.getPageHeight() - 10,
+      pageHeight - 10,
       { align: "center" }
     );
 
@@ -473,7 +487,7 @@ export const relatoriosService = {
     incluirVencendo: boolean
   ): Promise<Blob> {
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-    const pageWidth = doc.getPageWidth();
+    const { width: pageWidth, height: pageHeight } = getPageDimensions(doc);
     let y = 18;
 
     doc.setFontSize(18);
@@ -529,7 +543,7 @@ export const relatoriosService = {
       margin: { left: 14 },
       styles: { fontSize: 9 },
     });
-    y = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 12;
+    y = getLastAutoTableFinalY(doc) + 12;
 
     if (y > 250 && documentos.length > 0) {
       doc.addPage();
@@ -541,7 +555,7 @@ export const relatoriosService = {
     doc.text(
       `Gerado em ${new Date().toLocaleString("pt-BR")} — Sistema de Gestão`,
       pageWidth / 2,
-      doc.getPageHeight() - 10,
+      pageHeight - 10,
       { align: "center" }
     );
 

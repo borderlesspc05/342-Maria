@@ -96,13 +96,26 @@ function mapRawAnexo(a: Record<string, unknown>): AnexoLancamento {
     url: a.url as string,
     tamanho: a.tamanho as number,
     dataUpload:
-      a.dataUpload instanceof Timestamp
-        ? a.dataUpload.toDate()
+      a.dataUpload && typeof (a.dataUpload as { toDate?: () => Date }).toDate === "function"
+        ? (a.dataUpload as { toDate: () => Date }).toDate()
         : a.dataUpload
           ? new Date(a.dataUpload as string)
           : new Date(),
     storagePath: a.storagePath as string | undefined,
   };
+}
+
+/** Serializa anexos para gravação no Firestore (dataUpload como Timestamp). */
+function serializeAnexosParaFirestore(anexos: AnexoLancamento[]): Record<string, unknown>[] {
+  return anexos.map((a) => ({
+    id: a.id,
+    nome: a.nome,
+    tipo: a.tipo,
+    url: a.url,
+    tamanho: a.tamanho,
+    dataUpload: a.dataUpload ? Timestamp.fromDate(a.dataUpload instanceof Date ? a.dataUpload : new Date(a.dataUpload)) : Timestamp.now(),
+    storagePath: a.storagePath ?? null,
+  }));
 }
 
 /** Cache do último resultado Firebase para não perder a lista quando a consulta falha (ex.: após atualizar status) */
@@ -366,7 +379,7 @@ export const cadernoVirtualService = {
           .filter(Boolean),
         criadoPor: userId,
         criadoPorNome: userName,
-        anexos: anexosConvertidos,
+        anexos: serializeAnexosParaFirestore(anexosConvertidos),
         criadoEm: Timestamp.now(),
         atualizadoEm: Timestamp.now(),
       };
@@ -456,7 +469,7 @@ export const cadernoVirtualService = {
         : [];
       const cached = lastFirebaseItems.find((i) => i.id === id);
       const mantidos = data.anexosExistentes ?? cached?.anexos ?? [];
-      payload.anexos = [...mantidos, ...novosConvertidos];
+      payload.anexos = serializeAnexosParaFirestore([...mantidos, ...novosConvertidos]);
     }
 
     const doUpdate = async (): Promise<void> => {

@@ -68,6 +68,50 @@ function downloadAnexo(anexo: AnexoLancamento) {
   document.body.removeChild(link);
 }
 
+/**
+ * Abre o anexo (visualização em nova aba ou download).
+ * Data URLs longas são convertidas em blob URL para evitar about:blank no Chrome.
+ */
+function abrirAnexo(anexo: AnexoLancamento) {
+  const url = anexo.url?.trim();
+  if (!url) return;
+
+  const link = document.createElement("a");
+  link.rel = "noopener noreferrer";
+
+  if (url.startsWith("data:")) {
+    try {
+      const [header, base64] = url.split(",", 2);
+      const mimeMatch = header.match(/data:([^;]+)/);
+      const mime = mimeMatch ? mimeMatch[1] : "application/octet-stream";
+      const bin = atob(base64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const blob = new Blob([bytes], { type: mime });
+      const blobUrl = URL.createObjectURL(blob);
+      link.href = blobUrl;
+      link.download = anexo.nome;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+    } catch {
+      link.href = url;
+      link.download = anexo.nome;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  } else {
+    link.href = url;
+    link.download = anexo.nome;
+    link.target = "_blank";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+}
+
 const LancamentosDiarios: React.FC = () => {
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -363,12 +407,10 @@ const LancamentosDiarios: React.FC = () => {
                     <td>
                       {lancamento.anexos.length > 0 ? (
                         <button
+                          type="button"
                           className="lancamentos-anexos-count"
-                          title="Ver comprovantes"
-                          onClick={() => {
-                            setEditingLancamento(lancamento);
-                            setShowModal(true);
-                          }}
+                          title={lancamento.anexos.length === 1 ? "Abrir anexo" : "Abrir primeiro anexo"}
+                          onClick={() => abrirAnexo(lancamento.anexos[0])}
                         >
                           <HiPaperClip />
                           <span>{lancamento.anexos.length}</span>
