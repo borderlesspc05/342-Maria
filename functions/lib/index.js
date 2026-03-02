@@ -1,7 +1,6 @@
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
-import { onSchedule } from "firebase-functions/v2/scheduler";
-import { onCall, HttpsError } from "firebase-functions/v2/https";
+import * as functions from "firebase-functions/v1";
 initializeApp();
 const BACKUP_COLLECTIONS = [
     "premiosProdutividade",
@@ -76,9 +75,12 @@ async function runBackup() {
 }
 /**
  * Agendado: executa todo dia às 03:00 (America/Sao_Paulo).
- * Se config/backup tiver periodicity === "weekly", só roda aos domingos.
+ * 1ª geração = compatível com plano Spark (grátis).
  */
-export const scheduledBackup = onSchedule({ schedule: "0 3 * * *", timeZone: "America/Sao_Paulo" }, async () => {
+export const scheduledBackup = functions.pubsub
+    .schedule("0 3 * * *")
+    .timeZone("America/Sao_Paulo")
+    .onRun(async () => {
     const db = getFirestore();
     const configSnap = await db.collection(CONFIG_BACKUP).doc(CONFIG_BACKUP_DOC).get();
     const periodicity = configSnap.data()?.periodicity ?? "daily";
@@ -91,10 +93,13 @@ export const scheduledBackup = onSchedule({ schedule: "0 3 * * *", timeZone: "Am
 });
 /**
  * Acionável pelo app: "Fazer backup agora". Exige autenticação.
+ * 1ª geração = compatível com plano Spark (grátis).
  */
-export const runBackupNow = onCall(async (request) => {
-    if (!request.auth) {
-        throw new HttpsError("unauthenticated", "É necessário estar logado para executar o backup.");
+export const runBackupNow = functions.https.onCall(async (_data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError("unauthenticated", "É necessário estar logado para executar o backup.");
     }
     return await runBackup();
 });
+// E-mail: desativado no deploy para plano Spark (grátis). Use o envio via EmailJS no frontend.
+// export { onNotificacaoCriada, sendTestEmail } from "./emailNotification.js";

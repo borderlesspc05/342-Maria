@@ -15,6 +15,7 @@ import {
 } from "react-icons/hi";
 import { useNotificationContext } from "../../contexts/NotificationContext";
 import { notificacaoService } from "../../services/notificacaoService";
+import { emailNotificationService } from "../../services/emailNotificationService";
 import { useAuth } from "../../hooks/useAuth";
 import type {
   TipoNotificacao,
@@ -52,6 +53,7 @@ const Notificacoes: React.FC = () => {
   const [mostrarConfiguracoes, setMostrarConfiguracoes] = useState(false);
   const [configuracoes, setConfiguracoes] =
     useState<ConfiguracaoNotificacao | null>(null);
+  const [testEmailLoading, setTestEmailLoading] = useState(false);
 
   // Carregar configurações
   React.useEffect(() => {
@@ -161,6 +163,7 @@ const Notificacoes: React.FC = () => {
 
     try {
       await notificacaoService.atualizarConfiguracoes(user.uid, {
+        userEmail: user.email ?? configuracoes.userEmail,
         emailNotificacoes: configuracoes.emailNotificacoes,
         emailDocumentoVencendo: configuracoes.emailDocumentoVencendo,
         emailDocumentoVencido: configuracoes.emailDocumentoVencido,
@@ -174,6 +177,27 @@ const Notificacoes: React.FC = () => {
     } catch (error) {
       console.error("Erro ao salvar configurações:", error);
       showToast("Erro ao salvar configurações", "error");
+    }
+  };
+
+  const handleEnviarTestEmail = async () => {
+    const email = user?.email?.trim();
+    if (!email) {
+      showToast("Sua conta não possui e-mail cadastrado.", "error");
+      return;
+    }
+    setTestEmailLoading(true);
+    try {
+      const result = await emailNotificationService.sendTestEmail(email);
+      if (result.success) {
+        showToast(result.message);
+      } else {
+        showToast(result.message, "error");
+      }
+    } catch {
+      showToast("Não foi possível enviar o e-mail de teste.", "error");
+    } finally {
+      setTestEmailLoading(false);
     }
   };
 
@@ -418,6 +442,22 @@ const Notificacoes: React.FC = () => {
                     }
                   />
                 </label>
+              </div>
+              <div className="config-item config-item-test-email">
+                <button
+                  type="button"
+                  className="btn-test-email"
+                  onClick={handleEnviarTestEmail}
+                  disabled={testEmailLoading}
+                  aria-busy={testEmailLoading}
+                  aria-label="Enviar e-mail de teste para o endereço da sua conta"
+                >
+                  <HiMail className="btn-test-email-icon" />
+                  {testEmailLoading ? "Enviando…" : "Enviar e-mail de teste"}
+                </button>
+                <span className="config-test-email-hint">
+                  Envia um e-mail de teste para {user?.email || "seu e-mail"} para verificar se as notificações por e-mail estão ativas.
+                </span>
               </div>
             </div>
             <div className="config-actions">

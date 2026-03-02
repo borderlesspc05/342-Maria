@@ -1,4 +1,5 @@
-import { db } from "../lib/firebaseconfig";
+import { db, auth } from "../lib/firebaseconfig";
+import { emailNotificationService } from "./emailNotificationService";
 import {
   collection,
   doc,
@@ -88,6 +89,15 @@ export const notificacaoService = {
         id: docRef.id,
         ...notificacaoData,
       };
+
+      // Envio por e-mail (EmailJS, plano Spark): fire-and-forget
+      emailNotificationService
+        .sendForNotificationIfEnabled(
+          notificacao,
+          auth.currentUser?.email ?? null,
+          auth.currentUser?.uid ?? null
+        )
+        .catch(() => {});
 
       return notificacao;
     } catch (error) {
@@ -503,15 +513,12 @@ export const notificacaoService = {
   ): Promise<void> {
     try {
       const docRef = doc(db, CONFIGURACOES_COLLECTION, userId);
-      await updateDoc(docRef, {
-        ...data,
-        atualizadoEm: new Date(),
-      }).catch(async () => {
+      const payload = { ...data, atualizadoEm: new Date() };
+      await updateDoc(docRef, payload).catch(async () => {
         // Se não existe, criar
         await addDoc(collection(db, CONFIGURACOES_COLLECTION), {
           userId,
-          ...data,
-          atualizadoEm: new Date(),
+          ...payload,
         });
       });
     } catch (error) {

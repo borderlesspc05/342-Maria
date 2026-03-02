@@ -60,6 +60,8 @@ export interface NotificacaoStats {
 export interface ConfiguracaoNotificacao {
   id: string;
   userId: string;
+  /** E-mail do usuário (para envio de notificações; gravado ao salvar configurações). */
+  userEmail?: string;
   emailNotificacoes: boolean;
   emailDocumentoVencendo: boolean;
   emailDocumentoVencido: boolean;
@@ -71,6 +73,7 @@ export interface ConfiguracaoNotificacao {
 }
 
 export interface ConfiguracaoNotificacaoFormData {
+  userEmail?: string;
   emailNotificacoes: boolean;
   emailDocumentoVencendo: boolean;
   emailDocumentoVencido: boolean;

@@ -34,6 +34,12 @@ export default function getFirebaseErrorMessage(
     case "auth/invalid-api-key":
       return "Erro de configuração. Entre em contato com o suporte.";
 
+    case "auth/operation-not-allowed":
+      return "Recuperação por e-mail não está habilitada. Entre em contato com o suporte.";
+
+    case "auth/invalid-action-code":
+      return "Link expirado ou inválido. Solicite um novo link de recuperação.";
+
     default:
       return "Erro inesperado. Tente novamente.";
   }

@@ -14,6 +14,7 @@
     "firebase:deploy:storage": "firebase deploy --only storage"
   },
   "dependencies": {
+    "@emailjs/browser": "^4.4.1",
     "firebase": "^12.8.0",
     "jspdf": "^2.5.2",
     "jspdf-autotable": "^3.8.3",

@@ -155,8 +155,21 @@ const firebaseAuthService = {
   },
 
   async resetPassword(email: string): Promise<void> {
+    const emailTrimmed = email.trim().toLowerCase();
+    if (!emailTrimmed) {
+      throw new Error("Informe o e-mail.");
+    }
+
     try {
-      await sendPasswordResetEmail(auth, email);
+      const appUrl =
+        (import.meta.env.VITE_APP_URL as string)?.trim() ||
+        "https://maria-44e49.web.app";
+      const continueUrl = `${appUrl.replace(/\/$/, "")}/login`;
+
+      await sendPasswordResetEmail(auth, emailTrimmed, {
+        url: continueUrl,
+        handleCodeInApp: false,
+      });
     } catch (error) {
       const message = getFirebaseErrorMessage(error as string | FirebaseError);
       throw new Error(message);

@@ -1,13 +1,11 @@
+import * as functions from "firebase-functions/v1";
 /**
  * Agendado: executa todo dia às 03:00 (America/Sao_Paulo).
- * Se config/backup tiver periodicity === "weekly", só roda aos domingos.
+ * 1ª geração = compatível com plano Spark (grátis).
  */
-export declare const scheduledBackup: import("firebase-functions/v2/scheduler").ScheduleFunction;
+export declare const scheduledBackup: functions.CloudFunction<unknown>;
 /**
  * Acionável pelo app: "Fazer backup agora". Exige autenticação.
+ * 1ª geração = compatível com plano Spark (grátis).
  */
-export declare const runBackupNow: import("firebase-functions/v2/https").CallableFunction<any, Promise<{
-    backupId: string;
-    filename: string;
-    timestamp: string;
-}>, unknown>;
+export declare const runBackupNow: functions.HttpsFunction & functions.Runnable<any>;

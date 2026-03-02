@@ -133,12 +133,13 @@ const ForgotPassword: React.FC = () => {
           <div className="forgot-password-success">
             <div className="success-message">
               <p>
-                Enviamos um e-mail para <strong>{email}</strong> com instruções
-                para redefinir sua senha.
+                Se existir uma conta com o e-mail <strong>{email}</strong>, você
+                receberá um link para redefinir sua senha em instantes.
               </p>
               <p className="success-hint">
-                Se você não receber o e-mail, verifique sua caixa de spam ou
-                tente novamente.
+                Verifique a caixa de entrada e a pasta de spam. O e-mail pode
+                levar alguns minutos. Caso não receba, confirme se o e-mail está
+                correto e tente novamente.
               </p>
             </div>
 
