@@ -171,10 +171,13 @@
   background: white;
   border-radius: 16px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e2e8f0;
+  overflow: visible;
+}
+
+.lancamentos-table-scroll {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
-  border: 1px solid #e2e8f0;
-  overflow: hidden;
 }
 
 .lancamentos-loading,
@@ -299,6 +302,12 @@
   color: #92400e;
 }
 
+/* ── Popover de anexos na tabela ──────────────────── */
+.lancamentos-anexos-popover {
+  position: relative;
+  display: inline-block;
+}
+
 .lancamentos-anexos-count {
   display: inline-flex;
   align-items: center;
@@ -319,6 +328,152 @@
   background: #dbeafe;
   border-color: #3b82f6;
   transform: translateY(-1px);
+}
+
+.lancamentos-anexos-count:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.lancamentos-anexos-count[aria-expanded="true"] {
+  background: #dbeafe;
+  border-color: #3b82f6;
+}
+
+.lancamentos-anexos-dropdown {
+  min-width: 260px;
+  max-width: 320px;
+  max-height: 280px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12);
+  z-index: 50;
+  animation: anexosDropdownIn 0.2s ease-out;
+}
+
+.lancamentos-anexos-dropdown-portal {
+  max-height: min(280px, 50vh);
+}
+
+@keyframes anexosDropdownIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.lancamentos-anexos-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  transition: background 0.15s ease;
+}
+
+.lancamentos-anexos-dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.lancamentos-anexos-dropdown-item:hover {
+  background: #f8fafc;
+}
+
+.lancamentos-anexos-dropdown-icon {
+  font-size: 20px;
+  color: #3b82f6;
+  flex-shrink: 0;
+}
+
+.lancamentos-anexos-dropdown-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lancamentos-anexos-dropdown-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1a202c;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lancamentos-anexos-dropdown-size {
+  font-size: 11px;
+  color: #718096;
+}
+
+.lancamentos-anexos-dropdown-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.lancamentos-anexos-dropdown-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: #f1f5f9;
+  color: #4a5568;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  transition: all 0.2s ease;
+}
+
+.lancamentos-anexos-dropdown-btn:hover:not(:disabled) {
+  background: #e2e8f0;
+  color: #2563eb;
+}
+
+.lancamentos-anexos-dropdown-btn:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 1px;
+}
+
+.lancamentos-anexos-dropdown-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.lancamentos-anexos-dropdown-btn-download:hover:not(:disabled) {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+.lancamentos-anexos-dropdown-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #e2e8f0;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.lancamentos-anexos-indisponivel {
+  font-size: 11px;
+  color: #a0aec0;
+  font-style: italic;
 }
 
 .lancamentos-sem-anexo {
@@ -627,6 +782,20 @@
   color: #dc2626;
 }
 
+.lancamentos-file-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.lancamentos-file-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #e2e8f0;
+  border-top-color: #059669;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
 .lancamentos-file-errors {
   background: #fff5f5;
   border: 1px solid #fed7d7;
@@ -757,6 +926,14 @@
   .lancamentos-table-container {
     border-radius: 12px;
     margin: 0 -2px;
+  }
+
+  .lancamentos-table-scroll {
+    border-radius: 0 0 12px 12px;
+  }
+
+  .lancamentos-anexos-dropdown-portal {
+    max-width: min(320px, calc(100vw - 24px));
   }
 
   .lancamentos-table {

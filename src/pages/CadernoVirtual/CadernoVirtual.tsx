@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
 import { Layout } from "../../components/Layout";
 import {
   HiPlus,
@@ -22,6 +23,11 @@ import {
   validateFileSize,
   validateFileType,
 } from "../../services/anexoService";
+import {
+  downloadAnexo as downloadAnexoUtil,
+  abrirAnexoNovaAba,
+  isAnexoDisponivel,
+} from "../../utils/cadernoVirtualAnexoUtils";
 import { useAuth } from "../../hooks/useAuth";
 import { useToast } from "../../contexts/ToastContext";
 import type { Colaborador } from "../../types/premioProdutividade";
@@ -59,58 +65,165 @@ function getFileIcon(tipo: string) {
   return HiDocumentText;
 }
 
-function downloadAnexo(anexo: AnexoLancamento) {
-  const link = document.createElement("a");
-  link.href = anexo.url;
-  link.download = anexo.nome;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+/** Popover de anexos na tabela: lista todos e permite abrir/baixar cada um. */
+interface AnexosPopoverProps {
+  anexos: AnexoLancamento[];
+  onDownload: (anexo: AnexoLancamento) => Promise<void>;
+  onOpen: (anexo: AnexoLancamento) => void;
+  downloadingId: string | null;
 }
 
-/**
- * Abre o anexo (visualização em nova aba ou download).
- * Data URLs longas são convertidas em blob URL para evitar about:blank no Chrome.
- */
-function abrirAnexo(anexo: AnexoLancamento) {
-  const url = anexo.url?.trim();
-  if (!url) return;
+const AnexosPopover: React.FC<AnexosPopoverProps> = ({
+  anexos,
+  onDownload,
+  onOpen,
+  downloadingId,
+}) => {
+  const [open, setOpen] = useState(false);
+  const [dropdownRect, setDropdownRect] = useState<DOMRect | null>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
 
-  const link = document.createElement("a");
-  link.rel = "noopener noreferrer";
-
-  if (url.startsWith("data:")) {
-    try {
-      const [header, base64] = url.split(",", 2);
-      const mimeMatch = header.match(/data:([^;]+)/);
-      const mime = mimeMatch ? mimeMatch[1] : "application/octet-stream";
-      const bin = atob(base64);
-      const bytes = new Uint8Array(bin.length);
-      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-      const blob = new Blob([bytes], { type: mime });
-      const blobUrl = URL.createObjectURL(blob);
-      link.href = blobUrl;
-      link.download = anexo.nome;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
-    } catch {
-      link.href = url;
-      link.download = anexo.nome;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+  const updatePosition = useCallback(() => {
+    if (buttonRef.current) {
+      setDropdownRect(buttonRef.current.getBoundingClientRect());
     }
-  } else {
-    link.href = url;
-    link.download = anexo.nome;
-    link.target = "_blank";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  }, []);
+
+  const toggleOpen = useCallback(() => {
+    setOpen((prev) => {
+      const next = !prev;
+      if (next && buttonRef.current) {
+        setDropdownRect(buttonRef.current.getBoundingClientRect());
+      } else if (!next) {
+        setDropdownRect(null);
+      }
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const insidePopover = popoverRef.current?.contains(target);
+      const insideDropdown = target.closest(".lancamentos-anexos-dropdown");
+      if (!insidePopover && !insideDropdown) setOpen(false);
+    };
+    window.addEventListener("scroll", updatePosition, true);
+    window.addEventListener("resize", updatePosition);
+    document.addEventListener("keydown", handleEscape);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      window.removeEventListener("scroll", updatePosition, true);
+      window.removeEventListener("resize", updatePosition);
+      document.removeEventListener("keydown", handleEscape);
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [open, updatePosition]);
+
+  if (anexos.length === 0) {
+    return <span className="lancamentos-sem-anexo">—</span>;
   }
-}
+
+  const dropdownContent = open && dropdownRect && (
+    <div
+      className="lancamentos-anexos-dropdown lancamentos-anexos-dropdown-portal"
+      role="listbox"
+      aria-label="Lista de anexos"
+      style={{
+        position: "fixed",
+        top: dropdownRect.bottom + 6,
+        left: dropdownRect.left,
+        zIndex: 9999,
+      }}
+    >
+      {anexos.map((anexo) => {
+        const disponivel = isAnexoDisponivel(anexo);
+        const Icon = getFileIcon(anexo.tipo);
+        const isDownloading = downloadingId === anexo.id;
+        return (
+          <div
+            key={anexo.id}
+            className="lancamentos-anexos-dropdown-item"
+            role="option"
+          >
+            <Icon className="lancamentos-anexos-dropdown-icon" aria-hidden />
+            <div className="lancamentos-anexos-dropdown-info">
+              <span className="lancamentos-anexos-dropdown-name" title={anexo.nome}>
+                {anexo.nome}
+              </span>
+              <span className="lancamentos-anexos-dropdown-size">
+                {formatFileSize(anexo.tamanho)}
+              </span>
+            </div>
+            <div className="lancamentos-anexos-dropdown-actions">
+              {disponivel ? (
+                <>
+                  <button
+                    type="button"
+                    className="lancamentos-anexos-dropdown-btn"
+                    title="Abrir em nova aba"
+                    onClick={() => {
+                      onOpen(anexo);
+                      setOpen(false);
+                    }}
+                    aria-label={`Abrir ${anexo.nome}`}
+                  >
+                    <HiDocumentText />
+                  </button>
+                  <button
+                    type="button"
+                    className="lancamentos-anexos-dropdown-btn lancamentos-anexos-dropdown-btn-download"
+                    title="Baixar arquivo"
+                    onClick={async () => {
+                      await onDownload(anexo);
+                      setOpen(false);
+                    }}
+                    disabled={isDownloading}
+                    aria-label={`Baixar ${anexo.nome}`}
+                  >
+                    {isDownloading ? (
+                      <span className="lancamentos-anexos-dropdown-spinner" aria-hidden />
+                    ) : (
+                      <HiDownload />
+                    )}
+                  </button>
+                </>
+              ) : (
+                <span className="lancamentos-anexos-indisponivel">Indisponível</span>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  return (
+    <div className="lancamentos-anexos-popover" ref={popoverRef}>
+      <button
+        ref={buttonRef}
+        type="button"
+        className="lancamentos-anexos-count"
+        onClick={toggleOpen}
+        aria-expanded={open}
+        aria-haspopup="true"
+        aria-label={`${anexos.length} anexo(s). Clique para ver lista.`}
+        title="Ver anexos"
+      >
+        <HiPaperClip />
+        <span>{anexos.length}</span>
+      </button>
+      {typeof document !== "undefined" && dropdownContent
+        ? createPortal(dropdownContent, document.body)
+        : null}
+    </div>
+  );
+};
 
 const LancamentosDiarios: React.FC = () => {
   const { user } = useAuth();
@@ -127,6 +240,7 @@ const LancamentosDiarios: React.FC = () => {
     useState<LancamentoDiario | null>(null);
   const [loading, setLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
+  const [downloadingAnexoId, setDownloadingAnexoId] = useState<string | null>(null);
 
   const loadLancamentos = useCallback(async () => {
     try {
@@ -181,6 +295,21 @@ const LancamentosDiarios: React.FC = () => {
       showToast("Falha ao atualizar status.", "error");
     }
   };
+
+  const handleDownloadAnexo = useCallback(
+    async (anexo: AnexoLancamento) => {
+      setDownloadingAnexoId(anexo.id);
+      try {
+        await downloadAnexoUtil(anexo);
+      } catch (error) {
+        console.error("Erro ao baixar anexo:", error);
+        showToast("Não foi possível baixar o arquivo.", "error");
+      } finally {
+        setDownloadingAnexoId(null);
+      }
+    },
+    [showToast]
+  );
 
   const getStatusClass = (status: LancamentoStatus) =>
     status === "Recebido" ? "recebido" : "pendente";
@@ -355,6 +484,7 @@ const LancamentosDiarios: React.FC = () => {
               <p>Nenhum lançamento encontrado.</p>
             </div>
           ) : (
+            <div className="lancamentos-table-scroll">
             <table className="lancamentos-table">
               <thead>
                 <tr>
@@ -405,19 +535,12 @@ const LancamentosDiarios: React.FC = () => {
                       </span>
                     </td>
                     <td>
-                      {lancamento.anexos.length > 0 ? (
-                        <button
-                          type="button"
-                          className="lancamentos-anexos-count"
-                          title={lancamento.anexos.length === 1 ? "Abrir anexo" : "Abrir primeiro anexo"}
-                          onClick={() => abrirAnexo(lancamento.anexos[0])}
-                        >
-                          <HiPaperClip />
-                          <span>{lancamento.anexos.length}</span>
-                        </button>
-                      ) : (
-                        <span className="lancamentos-sem-anexo">—</span>
-                      )}
+                      <AnexosPopover
+                        anexos={lancamento.anexos}
+                        onDownload={handleDownloadAnexo}
+                        onOpen={abrirAnexoNovaAba}
+                        downloadingId={downloadingAnexoId}
+                      />
                     </td>
                     <td>
                       <div className="lancamentos-actions">
@@ -466,6 +589,7 @@ const LancamentosDiarios: React.FC = () => {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </div>
 
@@ -546,6 +670,7 @@ const LancamentoModal: React.FC<LancamentoModalProps> = ({
   const [newFiles, setNewFiles] = useState<File[]>([]);
   const [fileErrors, setFileErrors] = useState<string[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   useEffect(() => {
     setFormData(initialFormData);
@@ -815,31 +940,53 @@ const LancamentoModal: React.FC<LancamentoModalProps> = ({
                 <div className="lancamentos-file-list">
                   {existingAnexos.map((anexo) => {
                     const Icon = getFileIcon(anexo.tipo);
+                    const disponivel = isAnexoDisponivel(anexo);
+                    const isDownloading = downloadingId === anexo.id;
                     return (
                       <div key={anexo.id} className="lancamentos-file-item saved">
-                        <Icon className="lancamentos-file-icon" />
+                        <Icon className="lancamentos-file-icon" aria-hidden />
                         <div className="lancamentos-file-info">
-                          <span className="lancamentos-file-name">
+                          <span className="lancamentos-file-name" title={anexo.nome}>
                             {anexo.nome}
                           </span>
                           <span className="lancamentos-file-size">
-                            {formatFileSize(anexo.tamanho)}
+                            {disponivel
+                              ? formatFileSize(anexo.tamanho)
+                              : "Indisponível"}
                           </span>
                         </div>
                         <div className="lancamentos-file-actions">
                           <button
                             type="button"
                             className="lancamentos-file-btn download"
-                            title="Baixar arquivo"
-                            onClick={() => downloadAnexo(anexo)}
+                            title={disponivel ? "Baixar arquivo" : "Anexo indisponível"}
+                            onClick={async () => {
+                              if (!disponivel) return;
+                              setDownloadingId(anexo.id);
+                              try {
+                                await downloadAnexoUtil(anexo);
+                              } catch (err) {
+                                console.error("Erro ao baixar anexo:", err);
+                                showToast("Não foi possível baixar o arquivo.", "error");
+                              } finally {
+                                setDownloadingId(null);
+                              }
+                            }}
+                            disabled={!disponivel || isDownloading}
+                            aria-label={disponivel ? `Baixar ${anexo.nome}` : "Anexo indisponível"}
                           >
-                            <HiDownload />
+                            {isDownloading ? (
+                              <span className="lancamentos-file-spinner" aria-hidden />
+                            ) : (
+                              <HiDownload />
+                            )}
                           </button>
                           <button
                             type="button"
                             className="lancamentos-file-btn remove"
                             title="Remover anexo"
                             onClick={() => removeExistingAnexo(anexo.id)}
+                            aria-label={`Remover ${anexo.nome}`}
                           >
                             <HiX />
                           </button>

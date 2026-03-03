@@ -132,22 +132,43 @@ function timeoutPromise<T>(ms: number, message: string): Promise<T> {
   );
 }
 
+function normalizeAnexoFromRaw(a: Record<string, unknown>): AnexoLancamento {
+  return {
+    id: (a.id as string) || `anexo-${Date.now()}`,
+    nome: (a.nome as string) || "arquivo",
+    tipo: (a.tipo as string) || "application/octet-stream",
+    url: (a.url as string) || "",
+    tamanho: typeof a.tamanho === "number" ? a.tamanho : 0,
+    dataUpload: a.dataUpload
+      ? new Date(
+          typeof (a.dataUpload as { toDate?: () => Date }).toDate === "function"
+            ? (a.dataUpload as { toDate: () => Date }).toDate()
+            : (a.dataUpload as string)
+        )
+      : new Date(),
+    storagePath: a.storagePath as string | undefined,
+  };
+}
+
 function getLocalLancamentos(): LancamentoDiario[] {
   try {
     const raw = localStorage.getItem(LOCAL_LANCAMENTOS_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as Array<Record<string, unknown>>;
-    return parsed.map((item) => ({
-      ...item,
-      dataLancamento: item.dataLancamento
-        ? new Date(item.dataLancamento as string)
-        : new Date(),
-      criadoEm: item.criadoEm ? new Date(item.criadoEm as string) : new Date(),
-      atualizadoEm: item.atualizadoEm
-        ? new Date(item.atualizadoEm as string)
-        : new Date(),
-      anexos: (item.anexos as LancamentoDiario["anexos"]) || [],
-    })) as LancamentoDiario[];
+    return parsed.map((item) => {
+      const rawAnexos = (item.anexos as Record<string, unknown>[]) || [];
+      return {
+        ...item,
+        dataLancamento: item.dataLancamento
+          ? new Date(item.dataLancamento as string)
+          : new Date(),
+        criadoEm: item.criadoEm ? new Date(item.criadoEm as string) : new Date(),
+        atualizadoEm: item.atualizadoEm
+          ? new Date(item.atualizadoEm as string)
+          : new Date(),
+        anexos: rawAnexos.map(normalizeAnexoFromRaw),
+      };
+    }) as LancamentoDiario[];
   } catch {
     return [];
   }
@@ -463,8 +484,9 @@ export const cadernoVirtualService = {
     }
     if (data.observacoes !== undefined) payload.observacoes = data.observacoes;
 
+    let novosConvertidos: AnexoLancamento[] = [];
     if (hasAnexoChanges) {
-      const novosConvertidos = data.anexos?.length
+      novosConvertidos = data.anexos?.length
         ? await convertFilesToAnexos(data.anexos)
         : [];
       const cached = lastFirebaseItems.find((i) => i.id === id);
@@ -475,6 +497,9 @@ export const cadernoVirtualService = {
     const doUpdate = async (): Promise<void> => {
       await updateDoc(docRef, payload);
       const now = new Date();
+      const mergedAnexos = hasAnexoChanges
+        ? [...(data.anexosExistentes ?? []), ...novosConvertidos]
+        : undefined;
       lastFirebaseItems = lastFirebaseItems.map((item) =>
         item.id === id
           ? {
@@ -493,9 +518,7 @@ export const cadernoVirtualService = {
                   ? data.observacoes
                   : item.observacoes,
               atualizadoEm: now,
-              anexos: hasAnexoChanges
-                ? (payload.anexos as AnexoLancamento[])
-                : item.anexos,
+              anexos: mergedAnexos ?? item.anexos,
             }
           : item
       );
