@@ -8,6 +8,7 @@ import type {
 import type { ReactNode } from "react";
 import type { FirebaseError } from "firebase/app";
 import getFirebaseErrorMessage from "../components/ui/ErrorMessage";
+import { clearSecurityCache } from "../services/securityService";
 
 // Interface do contexto
 interface AuthContextType {
@@ -33,6 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Observa autenticação
   useEffect(() => {
     const unsubscribe = authService.observeAuthState((user) => {
+      clearSecurityCache();
       setUser(user);
       setLoading(false);
     });
@@ -44,6 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
       setError(null);
+      clearSecurityCache();
       const user = await authService.login(credentials);
       setUser(user);
     } catch (err) {
@@ -78,6 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(true);
       setError(null);
       await authService.logOut();
+      clearSecurityCache();
       setUser(null);
     } catch (err) {
       const message = getFirebaseErrorMessage(err as string | FirebaseError | string);

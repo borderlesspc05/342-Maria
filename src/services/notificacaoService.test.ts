@@ -3,7 +3,18 @@ import { vi } from "vitest";
 
 vi.mock("../lib/firebaseconfig", () => ({
   db: {},
-  auth: { currentUser: null },
+  auth: {
+    currentUser: {
+      uid: "u1",
+      email: "u1@test.local",
+    },
+  },
+}));
+
+vi.mock("./securityService", () => ({
+  assertAuthenticated: vi.fn().mockResolvedValue("u1"),
+  assertOwnerOrRole: vi.fn().mockResolvedValue({ uid: "u1", role: "admin" }),
+  assertRole: vi.fn().mockResolvedValue({ uid: "u1", role: "admin" }),
 }));
 
 vi.mock("./emailNotificationService", () => ({

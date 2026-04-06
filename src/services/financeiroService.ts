@@ -1,4 +1,4 @@
-import { db } from "../lib/firebaseconfig";
+import { auth, db } from "../lib/firebaseconfig";
 import {
   collection,
   addDoc,
@@ -23,8 +23,18 @@ import type {
   CategoriaFinanceira,
   AnexoFinanceiro,
 } from "../types/financeiro";
+import {
+  assertRole,
+  validatePositiveNumber,
+  validateRequiredString,
+} from "./securityService";
 const COLLECTION_NAME = "transacoes_financeiras";
 const LOCAL_STORAGE_KEY = "financeiro_transacoes_local";
+
+function getScopedLocalKey(): string {
+  const uid = auth.currentUser?.uid ?? "anon";
+  return `${LOCAL_STORAGE_KEY}:${uid}`;
+}
 
 function isFirebaseConfigured(): boolean {
   const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
@@ -37,7 +47,7 @@ function generateLocalId(): string {
 
 function getLocalTransacoes(): Transacao[] {
   try {
-    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+    const raw = localStorage.getItem(getScopedLocalKey());
     if (!raw) return [];
     const parsed = JSON.parse(raw) as Array<Record<string, unknown>>;
     return parsed.map((t) => ({
@@ -66,7 +76,7 @@ function saveLocalTransacoes(transacoes: Transacao[]): void {
     criadoEm: t.criadoEm?.toISOString?.() ?? null,
     atualizadoEm: t.atualizadoEm?.toISOString?.() ?? null,
   }));
-  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(toSave));
+  localStorage.setItem(getScopedLocalKey(), JSON.stringify(toSave));
 }
 
 // Helper para converter Date para Timestamp
@@ -292,6 +302,7 @@ const getMockTransacoes = (): Transacao[] => {
 
 export const financeiroService = {
   async list(filters: TransacaoFilters = {}): Promise<Transacao[]> {
+    await assertRole(["admin"], "listar transações financeiras");
     try {
       const constraints: QueryConstraint[] = [];
 
@@ -452,7 +463,11 @@ export const financeiroService = {
     formData: TransacaoFormData,
     criadoPor: string
   ): Promise<string> {
-    const valor = typeof formData.valor === "number" ? formData.valor : parseFloat(String(formData.valor)) || 0;
+    await assertRole(["admin"], "criar transação financeira");
+    validateRequiredString(formData.colaboradorId, "ID do colaborador", 1, 80);
+    validateRequiredString(formData.colaboradorNome, "Nome do colaborador", 2, 120);
+    validateRequiredString(formData.descricao, "Descrição", 3, 300);
+    const valor = validatePositiveNumber(formData.valor, "Valor");
     const now = new Date();
 
     if (!isFirebaseConfigured()) {
@@ -543,6 +558,7 @@ export const financeiroService = {
     id: string,
     formData: Partial<TransacaoFormData>
   ): Promise<void> {
+    await assertRole(["admin"], "atualizar transação financeira");
     if (id.startsWith("local-")) {
       const local = getLocalTransacoes();
       const idx = local.findIndex((t) => t.id === id);
@@ -585,6 +601,7 @@ export const financeiroService = {
   },
 
   async delete(id: string): Promise<void> {
+    await assertRole(["admin"], "deletar transação financeira");
     if (id.startsWith("local-")) {
       const local = getLocalTransacoes().filter((t) => t.id !== id);
       saveLocalTransacoes(local);
@@ -607,6 +624,7 @@ export const financeiroService = {
     numeroComprovante?: string,
     observacoes?: string
   ): Promise<void> {
+    await assertRole(["admin"], "atualizar status financeiro");
     if (id.startsWith("local-")) {
       const local = getLocalTransacoes();
       const idx = local.findIndex((t) => t.id === id);
@@ -662,6 +680,7 @@ export const financeiroService = {
   },
 
   async getStats(): Promise<FinanceiroStats> {
+    await assertRole(["admin"], "consultar estatísticas financeiras");
     try {
       const transacoes = await this.list();
 
@@ -722,6 +741,7 @@ export const financeiroService = {
   },
 
   async getResumoMensal(mes: number, ano: number): Promise<ResumoFinanceiro> {
+    await assertRole(["admin"], "consultar resumo financeiro");
     try {
       const dataInicio = new Date(ano, mes - 1, 1);
       const dataFim = new Date(ano, mes, 0);

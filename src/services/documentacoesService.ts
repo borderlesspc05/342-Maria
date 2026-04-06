@@ -14,7 +14,7 @@ import {
   type DocumentData,
   type QueryDocumentSnapshot,
 } from "firebase/firestore";
-import { db } from "../lib/firebaseconfig";
+import { auth, db } from "../lib/firebaseconfig";
 import type {
   Documento,
   DocumentoFormData,
@@ -25,6 +25,7 @@ import type {
   Treinamento,
   TreinamentoFormData,
 } from "../types/documentacoes";
+import { assertRole, validateRequiredString } from "./securityService";
 
 const documentosCollection = collection(db, "documentacoes");
 const treinamentosCollection = collection(db, "treinamentos");
@@ -37,6 +38,11 @@ function isFirebaseConfigured(): boolean {
   return typeof projectId === "string" && projectId.trim().length > 0;
 }
 
+function getScopedLocalKey(): string {
+  const uid = auth.currentUser?.uid ?? "anon";
+  return `${LOCAL_DOCS_KEY}:${uid}`;
+}
+
 function timeoutPromise<T>(ms: number, message: string): Promise<T> {
   return new Promise((_, reject) =>
     setTimeout(() => reject(new Error(message)), ms)
@@ -45,7 +51,7 @@ function timeoutPromise<T>(ms: number, message: string): Promise<T> {
 
 function getLocalDocumentos(): Documento[] {
   try {
-    const raw = localStorage.getItem(LOCAL_DOCS_KEY);
+    const raw = localStorage.getItem(getScopedLocalKey());
     if (!raw) return [];
     const parsed = JSON.parse(raw) as Array<Record<string, unknown>>;
     return parsed.map((d) => ({
@@ -75,7 +81,7 @@ function saveLocalDocumento(doc: Documento): void {
       atualizadoEm: d.atualizadoEm?.toISOString?.() ?? null,
     })
   );
-  localStorage.setItem(LOCAL_DOCS_KEY, JSON.stringify(serialized));
+  localStorage.setItem(getScopedLocalKey(), JSON.stringify(serialized));
 }
 
 function removeLocalDocumento(id: string): void {
@@ -88,7 +94,7 @@ function removeLocalDocumento(id: string): void {
     criadoEm: d.criadoEm?.toISOString?.() ?? null,
     atualizadoEm: d.atualizadoEm?.toISOString?.() ?? null,
   }));
-  localStorage.setItem(LOCAL_DOCS_KEY, JSON.stringify(serialized));
+  localStorage.setItem(getScopedLocalKey(), JSON.stringify(serialized));
 }
 
 const calcularStatusDocumento = (dataValidade: Date): StatusDocumento => {
@@ -205,6 +211,7 @@ const applyFiltersToDocumentos = (
 
 export const documentacoesService = {
   async list(filters?: DocumentoFilters): Promise<Documento[]> {
+    await assertRole(["admin", "gestor"], "listar documentações");
     if (!isFirebaseConfigured()) {
       return applyFiltersToDocumentos(getLocalDocumentos(), filters);
     }
@@ -238,6 +245,10 @@ export const documentacoesService = {
   },
 
   async create(data: DocumentoFormData, criadoPor: string): Promise<string> {
+    await assertRole(["admin", "gestor"], "criar documentação");
+    validateRequiredString(data.colaboradorNome, "Nome do colaborador", 2, 120);
+    validateRequiredString(data.numeroDocumento, "Número do documento", 1, 80);
+
     const dataValidade =
       data.dataValidade instanceof Date
         ? data.dataValidade
@@ -277,6 +288,7 @@ export const documentacoesService = {
     }
 
     const payload = {
+      ownerUid: criadoPor,
       colaboradorId: data.colaboradorId,
       colaboradorNome: data.colaboradorNome,
       cpf: data.cpf,
@@ -336,6 +348,7 @@ export const documentacoesService = {
     id: string,
     data: Partial<DocumentoFormData>
   ): Promise<void> {
+    await assertRole(["admin", "gestor"], "atualizar documentação");
     if (id.startsWith("local-")) {
       const list = getLocalDocumentos();
       const idx = list.findIndex((d) => d.id === id);
@@ -393,6 +406,7 @@ export const documentacoesService = {
   },
 
   async delete(id: string): Promise<void> {
+    await assertRole(["admin", "gestor"], "deletar documentação");
     if (id.startsWith("local-")) {
       removeLocalDocumento(id);
       return;
@@ -401,6 +415,7 @@ export const documentacoesService = {
   },
 
   async getStats(): Promise<DocumentoStats> {
+    await assertRole(["admin", "gestor"], "consultar estatísticas de documentação");
     const snapshot = await getDocs(documentosCollection);
     const documentos = snapshot.docs.map(mapSnapshotToDocumento);
 
@@ -436,18 +451,21 @@ export const documentacoesService = {
   },
 
   async getDocumentosVencidos(): Promise<Documento[]> {
+    await assertRole(["admin", "gestor"], "consultar documentos vencidos");
     const snapshot = await getDocs(documentosCollection);
     const documentos = snapshot.docs.map(mapSnapshotToDocumento);
     return documentos.filter((d) => d.status === "Vencido");
   },
 
   async getDocumentosVencendo(): Promise<Documento[]> {
+    await assertRole(["admin", "gestor"], "consultar documentos vencendo");
     const snapshot = await getDocs(documentosCollection);
     const documentos = snapshot.docs.map(mapSnapshotToDocumento);
     return documentos.filter((d) => d.status === "Vencendo");
   },
 
   async marcarAlertaEnviado(id: string): Promise<void> {
+    await assertRole(["admin", "gestor"], "marcar alerta enviado");
     await updateDoc(doc(documentosCollection, id), {
       alertaEnviado: true,
       dataAlerta: Timestamp.now(),
@@ -457,6 +475,7 @@ export const documentacoesService = {
 
   // Treinamentos
   async listTreinamentos(): Promise<Treinamento[]> {
+    await assertRole(["admin", "gestor"], "listar treinamentos");
     const q = query(treinamentosCollection, orderBy("dataInicio", "desc"));
     const snapshot = await getDocs(q);
     return snapshot.docs.map((docSnapshot) => {
@@ -479,6 +498,9 @@ export const documentacoesService = {
   async createTreinamento(
     data: TreinamentoFormData
   ): Promise<string> {
+    await assertRole(["admin", "gestor"], "criar treinamento");
+    validateRequiredString(data.titulo, "Título do treinamento", 2, 160);
+
     const hoje = new Date();
     let status: Treinamento["status"] = "Agendado";
     if (data.dataInicio <= hoje && data.dataFim >= hoje) {
@@ -489,6 +511,7 @@ export const documentacoesService = {
 
     const payload = {
       ...data,
+      ownerUid: auth.currentUser?.uid ?? "unknown",
       dataInicio: Timestamp.fromDate(data.dataInicio),
       dataFim: Timestamp.fromDate(data.dataFim),
       status,
@@ -504,6 +527,7 @@ export const documentacoesService = {
     id: string,
     data: Partial<TreinamentoFormData>
   ): Promise<void> {
+    await assertRole(["admin", "gestor"], "atualizar treinamento");
     const updateData: Record<string, unknown> = {
       atualizadoEm: Timestamp.now(),
     };
@@ -545,6 +569,7 @@ export const documentacoesService = {
   },
 
   async deleteTreinamento(id: string): Promise<void> {
+    await assertRole(["admin", "gestor"], "deletar treinamento");
     await deleteDoc(doc(treinamentosCollection, id));
   },
 };

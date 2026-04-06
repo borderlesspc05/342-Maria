@@ -26,7 +26,14 @@ export function AppRoutes() {
       <Routes>
         <Route path="/setup-admin" element={<SetupAdmin />} />
         <Route path={paths.login} element={<Login />} />
-        <Route path={paths.register} element={<Register />} />
+        <Route
+          path={paths.register}
+          element={
+            <ProtectedRoutes allowedRoles={["admin"]}>
+              <Register />
+            </ProtectedRoutes>
+          }
+        />
         <Route path={paths.forgotPassword} element={<ForgotPassword />} />
         <Route
           path={paths.home}

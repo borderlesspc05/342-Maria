@@ -96,7 +96,7 @@ const firebaseAuthService = {
         name: credentials.name,
         email: credentials.email,
         password: "", // Não armazenamos senha no Firestore
-        role: credentials.role || "colaborador",
+        role: "colaborador",
         createdAt: new Date(),
         updatedAt: new Date(),
       };

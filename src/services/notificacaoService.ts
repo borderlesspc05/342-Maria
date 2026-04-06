@@ -25,6 +25,11 @@ import type {
   ConfiguracaoNotificacao,
   ConfiguracaoNotificacaoFormData,
 } from "../types/notificacao";
+import {
+  assertAuthenticated,
+  assertOwnerOrRole,
+  assertRole,
+} from "./securityService";
 
 const NOTIFICACOES_COLLECTION = "notificacoes";
 const CONFIGURACOES_COLLECTION = "configuracoes_notificacoes";
@@ -72,6 +77,12 @@ export const notificacaoService = {
   // ============== CRUD de Notificações ==============
 
   async criar(data: NotificacaoFormData): Promise<Notificacao> {
+    await assertOwnerOrRole(
+      data.userId,
+      ["admin", "gestor"],
+      "criar notificação para outro usuário"
+    );
+
     try {
       const notificacaoData = {
         ...data,
@@ -107,6 +118,7 @@ export const notificacaoService = {
   },
 
   async criarEmLote(notificacoes: NotificacaoFormData[]): Promise<void> {
+    await assertRole(["admin", "gestor"], "criar notificações em lote");
     try {
       const batch = writeBatch(db);
 
@@ -128,6 +140,7 @@ export const notificacaoService = {
   },
 
   async buscarPorId(id: string): Promise<Notificacao | null> {
+    await assertAuthenticated();
     try {
       const docRef = doc(db, NOTIFICACOES_COLLECTION, id);
       const docSnap = await getDoc(docRef);
@@ -152,6 +165,12 @@ export const notificacaoService = {
     filters?: NotificacaoFilters,
     limitCount?: number
   ): Promise<Notificacao[]> {
+    await assertOwnerOrRole(
+      userId,
+      ["admin", "gestor"],
+      "listar notificações de outro usuário"
+    );
+
     try {
       let q = query(
         collection(db, NOTIFICACOES_COLLECTION),
@@ -255,6 +274,7 @@ export const notificacaoService = {
   },
 
   async marcarComoLida(id: string): Promise<void> {
+    await assertAuthenticated();
     try {
       const docRef = doc(db, NOTIFICACOES_COLLECTION, id);
       await updateDoc(docRef, {
@@ -268,6 +288,12 @@ export const notificacaoService = {
   },
 
   async marcarTodasComoLidas(userId: string): Promise<void> {
+    await assertOwnerOrRole(
+      userId,
+      ["admin", "gestor"],
+      "marcar notificações de outro usuário"
+    );
+
     try {
       let snapshot;
       try {
@@ -307,6 +333,7 @@ export const notificacaoService = {
   },
 
   async marcarEmailEnviado(id: string): Promise<void> {
+    await assertRole(["admin", "gestor"], "marcar e-mail como enviado");
     try {
       const docRef = doc(db, NOTIFICACOES_COLLECTION, id);
       await updateDoc(docRef, {
@@ -320,6 +347,7 @@ export const notificacaoService = {
   },
 
   async deletar(id: string): Promise<void> {
+    await assertAuthenticated();
     try {
       const docRef = doc(db, NOTIFICACOES_COLLECTION, id);
       await deleteDoc(docRef);
@@ -330,6 +358,12 @@ export const notificacaoService = {
   },
 
   async deletarTodasLidas(userId: string): Promise<void> {
+    await assertOwnerOrRole(
+      userId,
+      ["admin", "gestor"],
+      "deletar notificações lidas de outro usuário"
+    );
+
     try {
       let snapshot;
       try {
@@ -368,6 +402,12 @@ export const notificacaoService = {
   // ============== Estatísticas ==============
 
   async obterEstatisticas(userId: string): Promise<NotificacaoStats> {
+    await assertOwnerOrRole(
+      userId,
+      ["admin", "gestor"],
+      "consultar estatísticas de outro usuário"
+    );
+
     try {
       const notificacoes = await this.listarPorUsuario(userId);
 
@@ -464,6 +504,12 @@ export const notificacaoService = {
   // ============== Configurações de Notificação ==============
 
   async obterConfiguracoes(userId: string): Promise<ConfiguracaoNotificacao> {
+    await assertOwnerOrRole(
+      userId,
+      ["admin"],
+      "consultar configurações de outro usuário"
+    );
+
     try {
       const docRef = doc(db, CONFIGURACOES_COLLECTION, userId);
       const docSnap = await getDoc(docRef);
@@ -511,6 +557,12 @@ export const notificacaoService = {
     userId: string,
     data: ConfiguracaoNotificacaoFormData
   ): Promise<void> {
+    await assertOwnerOrRole(
+      userId,
+      ["admin"],
+      "atualizar configurações de outro usuário"
+    );
+
     try {
       const docRef = doc(db, CONFIGURACOES_COLLECTION, userId);
       const payload = { ...data, atualizadoEm: new Date() };
@@ -536,6 +588,7 @@ export const notificacaoService = {
     tipoDocumento: string,
     dataVencimento: Date
   ): Promise<void> {
+    await assertRole(["admin", "gestor"], "enviar notificação de documento vencendo");
     const diasRestantes = Math.ceil(
       (dataVencimento.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
     );
@@ -565,6 +618,7 @@ export const notificacaoService = {
     tipoDocumento: string,
     dataVencimento: Date
   ): Promise<void> {
+    await assertRole(["admin", "gestor"], "enviar notificação de documento vencido");
     await this.criar({
       userId,
       tipo: "documento_vencido",
@@ -588,6 +642,7 @@ export const notificacaoService = {
     valor: number,
     motivo: string
   ): Promise<void> {
+    await assertRole(["admin", "gestor"], "enviar notificação de prêmio");
     await this.criar({
       userId,
       tipo: "premio_lancado",
@@ -613,6 +668,7 @@ export const notificacaoService = {
     numero: string,
     valor: number
   ): Promise<void> {
+    await assertRole(["admin", "gestor"], "enviar notificação de boletim pendente");
     await this.criar({
       userId,
       tipo: "boletim_pendente",
@@ -638,6 +694,7 @@ export const notificacaoService = {
     numero: string,
     dataVencimento: Date
   ): Promise<void> {
+    await assertRole(["admin", "gestor"], "enviar notificação de boletim vencendo");
     const diasRestantes = Math.ceil(
       (dataVencimento.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
     );

@@ -21,6 +21,10 @@ import type {
   Anexo,
 } from "../types/boletimMedicao";
 import { uploadAnexos, removeAnexo } from "./anexoService";
+import {
+  getDataScope,
+  validateRequiredString,
+} from "./securityService";
 
 const BOLETINS_COLLECTION = "boletinsMedicao";
 
@@ -157,9 +161,14 @@ const mockBoletins: BoletimMedicao[] = [
 
 export const boletimMedicaoService = {
   async getAll(filters?: BoletimFilters): Promise<BoletimMedicao[]> {
+    const scope = await getDataScope(["admin", "gestor"], "listar boletins de medição");
     try {
       // Construir query com filtros
       const constraints: QueryConstraint[] = [];
+
+      if (!scope.isPrivileged) {
+        constraints.push(where("ownerUid", "==", scope.uid));
+      }
 
       if (filters) {
         if (filters.mes) {
@@ -221,11 +230,16 @@ export const boletimMedicaoService = {
   },
 
   async getById(id: string): Promise<BoletimMedicao | null> {
+    const scope = await getDataScope(["admin", "gestor"], "consultar boletim de medição");
     try {
       const docRef = doc(db, BOLETINS_COLLECTION, id);
       const docSnap = await getDoc(docRef);
       
       if (docSnap.exists()) {
+        const ownerUid = docSnap.data()?.ownerUid as string | undefined;
+        if (!scope.isPrivileged && ownerUid !== scope.uid) {
+          return null;
+        }
         return convertToBoletim(docSnap);
       }
       return null;
@@ -236,6 +250,8 @@ export const boletimMedicaoService = {
   },
 
   async create(data: BoletimMedicaoFormData): Promise<BoletimMedicao> {
+    const scope = await getDataScope(["admin", "gestor"], "criar boletim de medição");
+    validateRequiredString(data.cliente, "Cliente", 2, 120);
     try {
       // Gerar número do boletim
       const allBoletins = await this.getAll({ ano: data.anoReferencia });
@@ -254,7 +270,8 @@ export const boletimMedicaoService = {
         dataVencimento: data.dataVencimento ? Timestamp.fromDate(data.dataVencimento) : Timestamp.fromDate(now),
         observacoes: data.observacoes || "",
         anexos: [],
-        criadoPor: "current-user", // TODO: pegar do AuthContext
+        ownerUid: scope.uid,
+        criadoPor: scope.uid,
         criadoEm: Timestamp.fromDate(now),
         atualizadoEm: Timestamp.fromDate(now),
       };
@@ -273,7 +290,13 @@ export const boletimMedicaoService = {
     id: string,
     data: Partial<BoletimMedicaoFormData>
   ): Promise<BoletimMedicao> {
+    await getDataScope(["admin", "gestor"], "atualizar boletim de medição");
     try {
+      const existing = await this.getById(id);
+      if (!existing) {
+        throw new Error("Boletim não encontrado.");
+      }
+
       const docRef = doc(db, BOLETINS_COLLECTION, id);
       
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -307,7 +330,13 @@ export const boletimMedicaoService = {
   },
 
   async delete(id: string): Promise<void> {
+    await getDataScope(["admin", "gestor"], "deletar boletim de medição");
     try {
+      const existing = await this.getById(id);
+      if (!existing) {
+        throw new Error("Boletim não encontrado.");
+      }
+
       const docRef = doc(db, BOLETINS_COLLECTION, id);
       await deleteDoc(docRef);
     } catch (error) {
@@ -317,6 +346,7 @@ export const boletimMedicaoService = {
   },
 
   async getStats(ano?: number, mes?: string): Promise<BoletimStats> {
+    await getDataScope(["admin", "gestor"], "consultar estatísticas de boletins");
     try {
       // Buscar boletins com filtros
       const filters: BoletimFilters = {};
@@ -384,6 +414,7 @@ export const boletimMedicaoService = {
    * Adiciona anexos a um boletim
    */
   async addAnexos(boletimId: string, files: File[]): Promise<Anexo[]> {
+    await getDataScope(["admin", "gestor"], "adicionar anexos no boletim");
     try {
       // Upload dos arquivos
       const novosAnexos = await uploadAnexos(files);
@@ -414,6 +445,7 @@ export const boletimMedicaoService = {
    * Remove um anexo de um boletim (Firestore + Firebase Storage quando houver storagePath)
    */
   async removeAnexo(boletimId: string, anexoId: string): Promise<void> {
+    await getDataScope(["admin", "gestor"], "remover anexo do boletim");
     try {
       const boletim = await this.getById(boletimId);
       if (!boletim) {

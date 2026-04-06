@@ -1,50 +1,165 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Regra padrão: usuário autenticado pode ler e escrever.
-    // Ajuste depois com roles (admin/gestor/colaborador) se precisar.
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function hasUserDoc() {
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function currentRole() {
+      return hasUserDoc()
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+        : null;
+    }
+
+    function isAdmin() {
+      return currentRole() == "admin";
+    }
+
+    function isGestor() {
+      return currentRole() == "gestor";
+    }
+
+    function isColaborador() {
+      return currentRole() == "colaborador";
+    }
+
+    function isAdminOrGestor() {
+      return isAdmin() || isGestor();
+    }
+
+    function isKnownRole(role) {
+      return role in ["admin", "gestor", "colaborador"];
+    }
+
+    function hasOwnerUidInRequest() {
+      return request.resource.data.ownerUid is string && request.resource.data.ownerUid == request.auth.uid;
+    }
+
+    function isValidUserCreateData(uid) {
+      return request.resource.data.uid == uid
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 2
+        && request.resource.data.email is string
+        && request.resource.data.email.size() >= 5
+        && isKnownRole(request.resource.data.role);
+    }
+
+    function isValidUserSelfUpdate() {
+      return request.resource.data.uid == resource.data.uid
+        && request.resource.data.email == resource.data.email
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 2;
+    }
+
+    match /users/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create: if (isOwner(uid) && isValidUserCreateData(uid) && request.resource.data.role == "colaborador")
+        || (isAdmin() && isValidUserCreateData(uid));
+      allow update: if (isOwner(uid) && isValidUserSelfUpdate())
+        || isAdmin();
+      allow delete: if isAdmin();
+    }
+
     match /lancamentosDiarios/{docId} {
-      allow read, write: if request.auth != null;
+      allow read: if isSignedIn() && (
+        isAdminOrGestor()
+        || (isColaborador() && resource.data.ownerUid is string && resource.data.ownerUid == request.auth.uid)
+      );
+      allow create: if isSignedIn() && (
+        (isAdminOrGestor() || isColaborador())
+        && hasOwnerUidInRequest()
+      );
+      allow update, delete: if isSignedIn() && (
+        isAdminOrGestor()
+        || (isColaborador() && resource.data.ownerUid is string && resource.data.ownerUid == request.auth.uid)
+      );
     }
+
     match /boletinsMedicao/{docId} {
-      allow read, write: if request.auth != null;
+      allow read: if isSignedIn() && isAdminOrGestor();
+      allow create: if isSignedIn() && isAdminOrGestor() && hasOwnerUidInRequest();
+      allow update, delete: if isSignedIn() && isAdminOrGestor();
     }
+
     match /notas_fiscais/{docId} {
-      allow read, write: if request.auth != null;
+      allow read: if isSignedIn() && isAdminOrGestor();
+      allow create: if isSignedIn() && isAdminOrGestor() && hasOwnerUidInRequest();
+      allow update, delete: if isSignedIn() && isAdminOrGestor();
     }
+
     match /comprovantes_bancarios/{docId} {
-      allow read, write: if request.auth != null;
+      allow read: if isSignedIn() && isAdminOrGestor();
+      allow create: if isSignedIn() && isAdminOrGestor() && hasOwnerUidInRequest();
+      allow update, delete: if isSignedIn() && isAdminOrGestor();
     }
-    match /users/{docId} {
-      allow read, write: if request.auth != null;
+
+    match /transacoes_financeiras/{docId} {
+      allow read, write: if isSignedIn() && isAdmin();
     }
+
     match /documentacoes/{docId} {
-      allow read, write: if request.auth != null;
+      allow read: if isSignedIn() && isAdminOrGestor();
+      allow create: if isSignedIn() && isAdminOrGestor() && hasOwnerUidInRequest();
+      allow update, delete: if isSignedIn() && isAdminOrGestor();
     }
+
     match /treinamentos/{docId} {
-      allow read, write: if request.auth != null;
+      allow read: if isSignedIn() && isAdminOrGestor();
+      allow create: if isSignedIn() && isAdminOrGestor() && hasOwnerUidInRequest();
+      allow update, delete: if isSignedIn() && isAdminOrGestor();
     }
-    match /notificacoes/{docId} {
-      allow read, write: if request.auth != null;
-    }
-    match /configuracoes_notificacoes/{docId} {
-      allow read, write: if request.auth != null;
-    }
+
     match /premiosProdutividade/{docId} {
-      allow read, write: if request.auth != null;
+      allow read: if isSignedIn() && isAdminOrGestor();
+      allow create: if isSignedIn() && isAdminOrGestor() && hasOwnerUidInRequest();
+      allow update, delete: if isSignedIn() && isAdminOrGestor();
     }
+
     match /colaboradores/{docId} {
-      allow read, write: if request.auth != null;
+      allow read: if isSignedIn() && isAdminOrGestor();
+      allow create: if isSignedIn() && isAdminOrGestor() && hasOwnerUidInRequest();
+      allow update, delete: if isSignedIn() && isAdminOrGestor();
     }
+
+    match /notificacoes/{docId} {
+      allow read: if isSignedIn() && ((resource.data.userId is string && resource.data.userId == request.auth.uid) || isAdminOrGestor());
+      allow create: if isSignedIn() && (
+        (request.resource.data.userId is string && request.resource.data.userId == request.auth.uid)
+        || isAdminOrGestor()
+      );
+      allow update, delete: if isSignedIn() && (
+        (resource.data.userId is string && resource.data.userId == request.auth.uid)
+        || isAdminOrGestor()
+      );
+    }
+
+    match /configuracoes_notificacoes/{userId} {
+      allow read, write: if isOwner(userId) || isAdmin();
+    }
+
     match /config/{docId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isSignedIn() && isAdmin();
     }
+
     match /backups/{backupId} {
-      allow read, write: if request.auth != null;
+      allow read: if isSignedIn() && isAdmin();
+      allow write: if false;
     }
+
     match /backups/{backupId}/chunks/{chunkId} {
-      allow read, write: if request.auth != null;
+      allow read: if isSignedIn() && isAdmin();
+      allow write: if false;
     }
+
     // Bloqueia qualquer outra coleção não listada
     match /{document=**} {
       allow read, write: if false;

@@ -3,6 +3,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   orderBy,
   query,
@@ -13,7 +14,7 @@ import {
   QueryDocumentSnapshot,
   type DocumentData,
 } from "firebase/firestore";
-import { db } from "../lib/firebaseconfig";
+import { auth, db } from "../lib/firebaseconfig";
 import { storageService } from "./storageService";
 import type {
   AnexoLancamento,
@@ -24,6 +25,10 @@ import type {
   LancamentoStatus,
   TipoMovimentacao,
 } from "../types/cadernoVirtual";
+import {
+  getDataScope,
+  validateRequiredString,
+} from "./securityService";
 
 const STORAGE_BASE_PATH_CADERNO = "caderno_virtual";
 
@@ -150,9 +155,14 @@ function normalizeAnexoFromRaw(a: Record<string, unknown>): AnexoLancamento {
   };
 }
 
+function getScopedLocalKey(): string {
+  const uid = auth.currentUser?.uid ?? "anon";
+  return `${LOCAL_LANCAMENTOS_KEY}:${uid}`;
+}
+
 function getLocalLancamentos(): LancamentoDiario[] {
   try {
-    const raw = localStorage.getItem(LOCAL_LANCAMENTOS_KEY);
+    const raw = localStorage.getItem(getScopedLocalKey());
     if (!raw) return [];
     const parsed = JSON.parse(raw) as Array<Record<string, unknown>>;
     return parsed.map((item) => {
@@ -196,7 +206,7 @@ function saveLocalLancamento(lancamento: LancamentoDiario): void {
     list.push(lancamento);
   }
   localStorage.setItem(
-    LOCAL_LANCAMENTOS_KEY,
+    getScopedLocalKey(),
     JSON.stringify(list.map(serializeLancamento))
   );
 }
@@ -204,7 +214,7 @@ function saveLocalLancamento(lancamento: LancamentoDiario): void {
 function removeLocalLancamento(id: string): void {
   const list = getLocalLancamentos().filter((n) => n.id !== id);
   localStorage.setItem(
-    LOCAL_LANCAMENTOS_KEY,
+    getScopedLocalKey(),
     JSON.stringify(list.map(serializeLancamento))
   );
 }
@@ -234,8 +244,12 @@ const mapSnapshotToLancamento = (
   };
 };
 
-const buildFiltersQuery = (filters?: LancamentoFilters) => {
+const buildFiltersQuery = (filters?: LancamentoFilters, ownerUid?: string) => {
   const constraints: QueryConstraint[] = [];
+
+  if (ownerUid) {
+    constraints.push(where("ownerUid", "==", ownerUid));
+  }
 
   if (filters?.dataInicio) {
     constraints.push(
@@ -321,6 +335,10 @@ function applyFiltersInMemory(
 
 export const cadernoVirtualService = {
   async list(filters?: LancamentoFilters): Promise<LancamentoDiario[]> {
+    const scope = await getDataScope(
+      ["admin", "gestor", "colaborador"],
+      "listar lançamentos do caderno virtual"
+    );
     const localItems = getLocalLancamentos();
 
     if (!isFirebaseConfigured()) {
@@ -328,7 +346,7 @@ export const cadernoVirtualService = {
     }
 
     const doList = async (): Promise<LancamentoDiario[]> => {
-      const q = buildFiltersQuery(filters);
+      const q = buildFiltersQuery(filters, scope.isPrivileged ? undefined : scope.uid);
       const snapshot = await getDocs(q);
       return snapshot.docs.map(mapSnapshotToLancamento);
     };
@@ -360,6 +378,12 @@ export const cadernoVirtualService = {
     userId: string,
     userName: string
   ): Promise<string> {
+    const scope = await getDataScope(
+      ["admin", "gestor", "colaborador"],
+      "criar lançamento no caderno virtual"
+    );
+    validateRequiredString(data.descricao, "Descrição", 3, 300);
+
     const now = new Date();
     const localId = `local-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     const anexosConvertidos = data.anexos?.length
@@ -377,7 +401,7 @@ export const cadernoVirtualService = {
       colaboradorNome: data.colaboradorNome,
       observacoes: data.observacoes,
       anexos: anexosConvertidos,
-      criadoPor: userId,
+      criadoPor: scope.uid,
       criadoEm: now,
       atualizadoEm: now,
     });
@@ -398,7 +422,8 @@ export const cadernoVirtualService = {
           .toLowerCase()
           .split(" ")
           .filter(Boolean),
-        criadoPor: userId,
+        ownerUid: scope.uid,
+        criadoPor: scope.uid,
         criadoPorNome: userName,
         anexos: serializeAnexosParaFirestore(anexosConvertidos),
         criadoEm: Timestamp.now(),
@@ -422,6 +447,10 @@ export const cadernoVirtualService = {
   },
 
   async update(id: string, data: Partial<LancamentoFormData>): Promise<void> {
+    const scope = await getDataScope(
+      ["admin", "gestor", "colaborador"],
+      "atualizar lançamento no caderno virtual"
+    );
     const hasAnexoChanges =
       (data.anexos !== undefined && data.anexos.length > 0) ||
       data.anexosExistentes !== undefined;
@@ -460,6 +489,15 @@ export const cadernoVirtualService = {
 
     if (!isFirebaseConfigured()) {
       return;
+    }
+
+    const existingDoc = await getDoc(doc(lancamentosCollection, id));
+    if (!existingDoc.exists()) {
+      throw new Error("Lançamento não encontrado.");
+    }
+    const existingOwnerUid = existingDoc.data()?.ownerUid as string | undefined;
+    if (!scope.isPrivileged && existingOwnerUid !== scope.uid) {
+      throw new Error("Você não tem permissão para atualizar este lançamento.");
     }
 
     const docRef = doc(lancamentosCollection, id);
@@ -531,6 +569,10 @@ export const cadernoVirtualService = {
   },
 
   async updateStatus(id: string, status: LancamentoStatus): Promise<void> {
+    const scope = await getDataScope(
+      ["admin", "gestor", "colaborador"],
+      "atualizar status no caderno virtual"
+    );
     const now = new Date();
     if (id.startsWith("local-")) {
       const list = getLocalLancamentos();
@@ -538,6 +580,14 @@ export const cadernoVirtualService = {
       if (!item) return;
       saveLocalLancamento({ ...item, status, atualizadoEm: now });
       return;
+    }
+    const existingDoc = await getDoc(doc(lancamentosCollection, id));
+    if (!existingDoc.exists()) {
+      throw new Error("Lançamento não encontrado.");
+    }
+    const existingOwnerUid = existingDoc.data()?.ownerUid as string | undefined;
+    if (!scope.isPrivileged && existingOwnerUid !== scope.uid) {
+      throw new Error("Você não tem permissão para atualizar este lançamento.");
     }
     const docRef = doc(lancamentosCollection, id);
     await updateDoc(docRef, {
@@ -550,9 +600,21 @@ export const cadernoVirtualService = {
   },
 
   async delete(id: string): Promise<void> {
+    const scope = await getDataScope(
+      ["admin", "gestor", "colaborador"],
+      "deletar lançamento no caderno virtual"
+    );
     if (id.startsWith("local-")) {
       removeLocalLancamento(id);
       return;
+    }
+    const existingDoc = await getDoc(doc(lancamentosCollection, id));
+    if (!existingDoc.exists()) {
+      throw new Error("Lançamento não encontrado.");
+    }
+    const existingOwnerUid = existingDoc.data()?.ownerUid as string | undefined;
+    if (!scope.isPrivileged && existingOwnerUid !== scope.uid) {
+      throw new Error("Você não tem permissão para deletar este lançamento.");
     }
     const docRef = doc(lancamentosCollection, id);
     await deleteDoc(docRef);
@@ -560,6 +622,10 @@ export const cadernoVirtualService = {
   },
 
   async removeAnexo(lancamentoId: string, anexoId: string): Promise<void> {
+    const scope = await getDataScope(
+      ["admin", "gestor", "colaborador"],
+      "remover anexo no caderno virtual"
+    );
     if (lancamentoId.startsWith("local-")) {
       const list = getLocalLancamentos();
       const item = list.find((n) => n.id === lancamentoId);
@@ -573,6 +639,15 @@ export const cadernoVirtualService = {
     }
 
     if (!isFirebaseConfigured()) return;
+
+    const existingDoc = await getDoc(doc(lancamentosCollection, lancamentoId));
+    if (!existingDoc.exists()) {
+      throw new Error("Lançamento não encontrado.");
+    }
+    const existingOwnerUid = existingDoc.data()?.ownerUid as string | undefined;
+    if (!scope.isPrivileged && existingOwnerUid !== scope.uid) {
+      throw new Error("Você não tem permissão para editar este lançamento.");
+    }
 
     const cached = lastFirebaseItems.find((i) => i.id === lancamentoId);
     const anexoRemovido = cached?.anexos?.find((a) => a.id === anexoId);
@@ -600,6 +675,10 @@ export const cadernoVirtualService = {
   },
 
   async getStats(dataInicio?: Date, dataFim?: Date): Promise<LancamentoStats> {
+    await getDataScope(
+      ["admin", "gestor", "colaborador"],
+      "consultar estatísticas do caderno virtual"
+    );
     const filters: LancamentoFilters = {};
     if (dataInicio) filters.dataInicio = dataInicio;
     if (dataFim) filters.dataFim = dataFim;

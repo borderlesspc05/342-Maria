@@ -3,6 +3,18 @@ import { vi } from "vitest";
 
 vi.mock("../lib/firebaseconfig", () => ({
   db: {},
+  auth: {
+    currentUser: {
+      uid: "user-1",
+      email: "user-1@test.local",
+    },
+  },
+}));
+
+vi.mock("./securityService", () => ({
+  assertRole: vi.fn().mockResolvedValue({ uid: "user-1", role: "admin" }),
+  validatePositiveNumber: (value: unknown) => Number(value),
+  validateRequiredString: (value: unknown) => String(value).trim(),
 }));
 
 describe("documentosFinanceirosService", () => {

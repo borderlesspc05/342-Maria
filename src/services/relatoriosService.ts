@@ -5,6 +5,7 @@ import {
   getDocs,
   orderBy,
   Timestamp,
+  type QueryConstraint,
 } from "firebase/firestore";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -19,6 +20,7 @@ import type {
   ResumoDocumentacoes,
   ResumoRecebimentos,
 } from "../types/relatorios";
+import { getDataScope, type DataScope } from "./securityService";
 
 const MESES = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -57,14 +59,15 @@ export const relatoriosService = {
     colaboradorId?: string,
     colaboradorNome?: string
   ): Promise<RelatorioConsolidado> {
+    const scope = await getDataScope(["admin", "gestor"], "gerar relatório consolidado");
     const inicioMes = new Date(ano, mes - 1, 1);
     const fimMes = new Date(ano, mes, 0, 23, 59, 59, 999);
 
     const [premiosData, boletinsData, lancamentosData, documentosList] =
       await Promise.all([
-        this.getPremiosPorPeriodo(inicioMes, fimMes, colaboradorId),
-        this.getBoletinsPorPeriodo(inicioMes, fimMes),
-        this.getRecebimentosPorPeriodo(inicioMes, fimMes, colaboradorId),
+        this.getPremiosPorPeriodo(inicioMes, fimMes, colaboradorId, scope),
+        this.getBoletinsPorPeriodo(inicioMes, fimMes, scope),
+        this.getRecebimentosPorPeriodo(inicioMes, fimMes, colaboradorId, scope),
         documentacoesService.list(),
       ]);
 
@@ -170,13 +173,23 @@ export const relatoriosService = {
   async getPremiosPorPeriodo(
     dataInicio: Date,
     dataFim: Date,
-    colaboradorId?: string
+    colaboradorId?: string,
+    providedScope?: DataScope
   ): Promise<Array<{ valor: number; status: string }>> {
-    const q = query(
-      premiosCollection,
+    const scope = providedScope ?? await getDataScope(["admin", "gestor"], "consultar prêmios por período");
+    const constraints: QueryConstraint[] = [
       where("dataPremio", ">=", Timestamp.fromDate(dataInicio)),
       where("dataPremio", "<=", Timestamp.fromDate(dataFim)),
-      orderBy("dataPremio", "desc")
+      orderBy("dataPremio", "desc"),
+    ];
+
+    if (!scope.isPrivileged) {
+      constraints.push(where("ownerUid", "==", scope.uid));
+    }
+
+    const q = query(
+      premiosCollection,
+      ...constraints
     );
     const snapshot = await getDocs(q);
     let items = snapshot.docs.map((doc) => {
@@ -195,13 +208,23 @@ export const relatoriosService = {
 
   async getBoletinsPorPeriodo(
     dataInicio: Date,
-    dataFim: Date
+    dataFim: Date,
+    providedScope?: DataScope
   ): Promise<Array<{ valor: number; status: string }>> {
-    const q = query(
-      boletinsCollection,
+    const scope = providedScope ?? await getDataScope(["admin", "gestor"], "consultar boletins por período");
+    const constraints: QueryConstraint[] = [
       where("dataEmissao", ">=", Timestamp.fromDate(dataInicio)),
       where("dataEmissao", "<=", Timestamp.fromDate(dataFim)),
-      orderBy("dataEmissao", "desc")
+      orderBy("dataEmissao", "desc"),
+    ];
+
+    if (!scope.isPrivileged) {
+      constraints.push(where("ownerUid", "==", scope.uid));
+    }
+
+    const q = query(
+      boletinsCollection,
+      ...constraints
     );
     const snapshot = await getDocs(q);
     return snapshot.docs.map((doc) => {
@@ -216,15 +239,25 @@ export const relatoriosService = {
   async getRecebimentosPorPeriodo(
     dataInicio: Date,
     dataFim: Date,
-    colaboradorId?: string
+    colaboradorId?: string,
+    providedScope?: DataScope
   ): Promise<
     Array<{ valor: number; status: string; tipoMovimentacao: string }>
   > {
-    const q = query(
-      lancamentosCollection,
+    const scope = providedScope ?? await getDataScope(["admin", "gestor"], "consultar recebimentos por período");
+    const constraints: QueryConstraint[] = [
       where("dataLancamento", ">=", Timestamp.fromDate(dataInicio)),
       where("dataLancamento", "<=", Timestamp.fromDate(dataFim)),
-      orderBy("dataLancamento", "desc")
+      orderBy("dataLancamento", "desc"),
+    ];
+
+    if (!scope.isPrivileged) {
+      constraints.push(where("ownerUid", "==", scope.uid));
+    }
+
+    const q = query(
+      lancamentosCollection,
+      ...constraints
     );
     const snapshot = await getDocs(q);
     let items = snapshot.docs.map((doc) => {

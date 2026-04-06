@@ -6,7 +6,7 @@ export interface User {
   createdAt: Date;
   updatedAt: Date;
   /** Papel do usuário no sistema */
-  role?: "admin" | "gestor" | "colaborador";
+  role: "admin" | "gestor" | "colaborador";
 }
 
 export interface AuthState {

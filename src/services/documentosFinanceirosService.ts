@@ -1,6 +1,6 @@
 // src/services/documentosFinanceirosService.ts
 
-import { db } from "../lib/firebaseconfig";
+import { auth, db } from "../lib/firebaseconfig";
 import {
   collection,
   doc,
@@ -29,6 +29,11 @@ import type {
   ComprovanteBancarioFormData,
   DocumentoFinanceiroFilters,
 } from "../types/documentosFinanceiros";
+import {
+  assertRole,
+  validatePositiveNumber,
+  validateRequiredString,
+} from "./securityService";
 
 const NOTAS_FISCAIS_COLLECTION = "notas_fiscais";
 const COMPROVANTES_COLLECTION = "comprovantes_bancarios";
@@ -42,6 +47,11 @@ function isFirebaseConfigured(): boolean {
   return typeof projectId === "string" && projectId.trim().length > 0;
 }
 
+function getScopedLocalKey(): string {
+  const uid = auth.currentUser?.uid ?? "anon";
+  return `${LOCAL_NOTAS_KEY}:${uid}`;
+}
+
 function timeoutPromise<T>(ms: number, message: string): Promise<T> {
   return new Promise((_, reject) =>
     setTimeout(() => reject(new Error(message)), ms)
@@ -50,7 +60,7 @@ function timeoutPromise<T>(ms: number, message: string): Promise<T> {
 
 function getLocalNotasFiscais(): NotaFiscal[] {
   try {
-    const raw = localStorage.getItem(LOCAL_NOTAS_KEY);
+    const raw = localStorage.getItem(getScopedLocalKey());
     if (!raw) return [];
     const parsed = JSON.parse(raw) as Array<Record<string, unknown>>;
     return parsed.map((n) => ({
@@ -93,7 +103,7 @@ function saveLocalNotaFiscal(nota: NotaFiscal): void {
     list.push(nota);
   }
   localStorage.setItem(
-    LOCAL_NOTAS_KEY,
+    getScopedLocalKey(),
     JSON.stringify(list.map(serializeNota))
   );
 }
@@ -110,7 +120,7 @@ function removeLocalNotaFiscal(id: string): void {
       ? { ...n.arquivo, dataUpload: n.arquivo.dataUpload?.toISOString?.() ?? null }
       : null,
   }));
-  localStorage.setItem(LOCAL_NOTAS_KEY, JSON.stringify(serialized));
+  localStorage.setItem(getScopedLocalKey(), JSON.stringify(serialized));
 }
 
 // Converter Timestamp para Date
@@ -173,6 +183,11 @@ export const documentosFinanceirosService = {
     data: NotaFiscalFormData,
     userId: string
   ): Promise<NotaFiscal> {
+    await assertRole(["admin", "gestor"], "criar nota fiscal");
+    validateRequiredString(data.numero, "Número da nota", 1, 80);
+    validateRequiredString(data.fornecedor, "Fornecedor", 2, 120);
+    validatePositiveNumber(data.valor, "Valor da nota");
+
     const now = new Date();
     const localId = `local-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
@@ -215,6 +230,7 @@ export const documentosFinanceirosService = {
       const arquivo = await uploadArquivo(data.arquivo, userId, "nota_fiscal");
       const notaFiscalData = {
         ...data,
+        ownerUid: userId,
         arquivo: {
           ...arquivo,
           dataUpload: arquivo.dataUpload,
@@ -255,6 +271,7 @@ export const documentosFinanceirosService = {
   async listarNotasFiscais(
     filters?: DocumentoFinanceiroFilters
   ): Promise<NotaFiscal[]> {
+    await assertRole(["admin", "gestor"], "listar notas fiscais");
     const applyFilters = (notas: NotaFiscal[]): NotaFiscal[] => {
       let result = notas;
       if (filters?.valorMin) {
@@ -344,6 +361,7 @@ export const documentosFinanceirosService = {
     id: string,
     data: Partial<NotaFiscal>
   ): Promise<void> {
+    await assertRole(["admin", "gestor"], "atualizar nota fiscal");
     try {
       const docRef = doc(db, NOTAS_FISCAIS_COLLECTION, id);
       await updateDoc(docRef, {
@@ -357,6 +375,7 @@ export const documentosFinanceirosService = {
   },
 
   async deletarNotaFiscal(id: string): Promise<void> {
+    await assertRole(["admin", "gestor"], "deletar nota fiscal");
     if (id.startsWith("local-")) {
       removeLocalNotaFiscal(id);
       return;
@@ -388,12 +407,17 @@ export const documentosFinanceirosService = {
     data: ComprovanteBancarioFormData,
     userId: string
   ): Promise<ComprovanteBancario> {
+    await assertRole(["admin", "gestor"], "criar comprovante bancário");
+    validateRequiredString(data.beneficiario, "Beneficiário", 2, 120);
+    validatePositiveNumber(data.valor, "Valor do comprovante");
+
     try {
       // Upload do arquivo
       const arquivo = await uploadArquivo(data.arquivo, userId, "comprovante");
 
       const comprovanteData = {
         ...data,
+        ownerUid: userId,
         arquivo,
         status: "pendente" as const,
         criadoPor: userId,
@@ -419,6 +443,7 @@ export const documentosFinanceirosService = {
   async listarComprovantesBancarios(
     filters?: DocumentoFinanceiroFilters
   ): Promise<ComprovanteBancario[]> {
+    await assertRole(["admin", "gestor"], "listar comprovantes bancários");
     try {
       let q = query(
         collection(db, COMPROVANTES_COLLECTION),
@@ -476,6 +501,7 @@ export const documentosFinanceirosService = {
     id: string,
     data: Partial<ComprovanteBancario>
   ): Promise<void> {
+    await assertRole(["admin", "gestor"], "atualizar comprovante bancário");
     try {
       const docRef = doc(db, COMPROVANTES_COLLECTION, id);
       await updateDoc(docRef, {
@@ -489,6 +515,7 @@ export const documentosFinanceirosService = {
   },
 
   async deletarComprovanteBancario(id: string): Promise<void> {
+    await assertRole(["admin", "gestor"], "deletar comprovante bancário");
     try {
       const docRef = doc(db, COMPROVANTES_COLLECTION, id);
       const docSnap = await getDoc(docRef);

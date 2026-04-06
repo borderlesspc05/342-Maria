@@ -22,6 +22,7 @@ import type {
   RelatorioMensal,
   PremioStatus,
 } from "../types/premioProdutividade";
+import { getDataScope } from "./securityService";
 
 const premiosCollection = collection(db, "premiosProdutividade");
 
@@ -51,8 +52,12 @@ const mapSnapshotToPremio = (
   };
 };
 
-const buildFiltersQuery = (filters?: PremioFilters) => {
+const buildFiltersQuery = (filters?: PremioFilters, ownerUid?: string) => {
   const constraints: QueryConstraint[] = [];
+
+  if (ownerUid) {
+    constraints.push(where("ownerUid", "==", ownerUid));
+  }
 
   // Aplica filtros na ordem correta para evitar problemas de índice
   if (filters?.ano) {
@@ -85,8 +90,13 @@ const buildFiltersQuery = (filters?: PremioFilters) => {
 
 export const premioProdutividadeService = {
   async list(filters?: PremioFilters): Promise<PremioProdutividade[]> {
+    const scope = await getDataScope(
+      ["admin", "gestor"],
+      "listar prêmios de produtividade"
+    );
+
     try {
-      const q = buildFiltersQuery(filters);
+      const q = buildFiltersQuery(filters, scope.isPrivileged ? undefined : scope.uid);
       const snapshot = await getDocs(q);
       return snapshot.docs.map(mapSnapshotToPremio);
     } catch (error: any) {
@@ -97,6 +107,9 @@ export const premioProdutividadeService = {
         // Tenta query sem orderBy primeiro
         try {
           const simpleConstraints: QueryConstraint[] = [];
+          if (!scope.isPrivileged) {
+            simpleConstraints.push(where("ownerUid", "==", scope.uid));
+          }
           if (filters?.ano) {
             simpleConstraints.push(where("anoReferencia", "==", filters.ano));
           }
@@ -158,9 +171,15 @@ export const premioProdutividadeService = {
   },
 
   async create(data: PremioFormData): Promise<string> {
+    const scope = await getDataScope(
+      ["admin", "gestor"],
+      "criar prêmio de produtividade"
+    );
+
     try {
       const payload = {
         ...data,
+        ownerUid: scope.uid,
         valor: Number(data.valor),
         mesReferencia: data.dataPremio.getMonth() + 1,
         anoReferencia: data.dataPremio.getFullYear(),
@@ -190,6 +209,7 @@ export const premioProdutividadeService = {
   },
 
   async update(id: string, data: Partial<PremioFormData>): Promise<void> {
+    await getDataScope(["admin", "gestor"], "atualizar prêmio de produtividade");
     const docRef = doc(premiosCollection, id);
     const payload: Record<string, unknown> = {
       ...data,
@@ -217,6 +237,7 @@ export const premioProdutividadeService = {
     status: PremioStatus,
     aprovadoPor?: string
   ): Promise<void> {
+    await getDataScope(["admin", "gestor"], "atualizar status de prêmio");
     const docRef = doc(premiosCollection, id);
     await updateDoc(docRef, {
       status,
@@ -226,6 +247,7 @@ export const premioProdutividadeService = {
   },
 
   async delete(id: string): Promise<void> {
+    await getDataScope(["admin", "gestor"], "deletar prêmio de produtividade");
     const docRef = doc(premiosCollection, id);
     await deleteDoc(docRef);
   },
@@ -233,8 +255,13 @@ export const premioProdutividadeService = {
   async getHistoricoByColaborador(
     colaboradorId: string
   ): Promise<PremioProdutividade[]> {
+    const scope = await getDataScope(
+      ["admin", "gestor"],
+      "consultar histórico de prêmios"
+    );
     const q = query(
       premiosCollection,
+      ...(scope.isPrivileged ? [] : [where("ownerUid", "==", scope.uid)]),
       where("colaboradorId", "==", colaboradorId),
       orderBy("dataPremio", "desc")
     );
@@ -243,9 +270,14 @@ export const premioProdutividadeService = {
   },
 
   async getStats(ano: number, mes: number): Promise<PremioStats> {
+    const scope = await getDataScope(
+      ["admin", "gestor"],
+      "consultar estatísticas de prêmios"
+    );
     try {
       const q = query(
         premiosCollection,
+        ...(scope.isPrivileged ? [] : [where("ownerUid", "==", scope.uid)]),
         where("anoReferencia", "==", ano),
         where("mesReferencia", "==", mes)
       );
@@ -276,7 +308,12 @@ export const premioProdutividadeService = {
       // Se houver erro de índice, busca todos e filtra em memória
       if (error?.code === "failed-precondition" || error?.message?.includes("index")) {
         console.warn("Índice não encontrado para stats, usando fallback");
-        const snapshot = await getDocs(query(premiosCollection));
+        const snapshot = await getDocs(
+          query(
+            premiosCollection,
+            ...(scope.isPrivileged ? [] : [where("ownerUid", "==", scope.uid)])
+          )
+        );
         const allEntries = snapshot.docs.map(mapSnapshotToPremio);
         const entries = allEntries.filter(
           (p) => p.anoReferencia === ano && p.mesReferencia === mes
@@ -317,8 +354,13 @@ export const premioProdutividadeService = {
     ano: number,
     mes: number
   ): Promise<RelatorioMensal> {
+    const scope = await getDataScope(
+      ["admin", "gestor"],
+      "gerar relatório mensal de prêmios"
+    );
     const q = query(
       premiosCollection,
+      ...(scope.isPrivileged ? [] : [where("ownerUid", "==", scope.uid)]),
       where("anoReferencia", "==", ano),
       where("mesReferencia", "==", mes)
     );
@@ -346,8 +388,13 @@ export const premioProdutividadeService = {
   },
 
   async exportarRelatorioCSV(ano: number, mes: number): Promise<Blob> {
+    const scope = await getDataScope(
+      ["admin", "gestor"],
+      "exportar relatório de prêmios"
+    );
     const q = query(
       premiosCollection,
+      ...(scope.isPrivileged ? [] : [where("ownerUid", "==", scope.uid)]),
       where("anoReferencia", "==", ano),
       where("mesReferencia", "==", mes),
       orderBy("dataPremio", "desc")

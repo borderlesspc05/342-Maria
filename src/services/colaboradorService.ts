@@ -12,8 +12,9 @@ import {
   type DocumentData,
   type QueryDocumentSnapshot,
 } from "firebase/firestore";
-import { db } from "../lib/firebaseconfig";
+import { auth, db } from "../lib/firebaseconfig";
 import type { Colaborador } from "../types/premioProdutividade";
+import { assertRole, validateRequiredString } from "./securityService";
 
 const LOCAL_STORAGE_KEY = "colaboradores_local";
 const CREATE_TIMEOUT_MS = 3000;
@@ -21,6 +22,11 @@ const LIST_TIMEOUT_MS = 10000;
 
 function normalizeCpf(cpf: string): string {
   return (cpf || "").replace(/\D/g, "");
+}
+
+function getScopedLocalKey(): string {
+  const uid = auth.currentUser?.uid ?? "anon";
+  return `${LOCAL_STORAGE_KEY}:${uid}`;
 }
 
 function getColaboradoresCollection() {
@@ -49,7 +55,7 @@ function mapSnapshotToColaborador(
 
 function getLocalColaboradores(): Colaborador[] {
   try {
-    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+    const raw = localStorage.getItem(getScopedLocalKey());
     if (!raw) return [];
     const parsed = JSON.parse(raw) as Array<{
       id: string;
@@ -89,7 +95,7 @@ function saveLocalColaborador(colab: Colaborador): void {
     email: c.email,
     admissao: c.admissao instanceof Date ? c.admissao.toISOString() : undefined,
   }));
-  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(toSave));
+  localStorage.setItem(getScopedLocalKey(), JSON.stringify(toSave));
 }
 
 function removeLocalColaborador(id: string): void {
@@ -103,7 +109,7 @@ function removeLocalColaborador(id: string): void {
     email: c.email,
     admissao: c.admissao instanceof Date ? c.admissao.toISOString() : undefined,
   }));
-  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(toSave));
+  localStorage.setItem(getScopedLocalKey(), JSON.stringify(toSave));
 }
 
 function timeoutPromise<T>(ms: number, message: string): Promise<T> {
@@ -128,6 +134,7 @@ export interface CreateColaboradorResult {
 
 export const colaboradorService = {
   async list(nomeBusca?: string): Promise<Colaborador[]> {
+    await assertRole(["admin", "gestor"], "listar colaboradores");
     let list: Colaborador[] = [];
     if (isFirebaseConfigured()) {
       try {
@@ -190,6 +197,7 @@ export const colaboradorService = {
   },
 
   async getById(id: string): Promise<Colaborador | null> {
+    await assertRole(["admin", "gestor"], "consultar colaborador");
     if (!isFirebaseConfigured()) return null;
     const docRef = doc(getColaboradoresCollection(), id);
     const snap = await getDoc(docRef);
@@ -198,6 +206,10 @@ export const colaboradorService = {
   },
 
   async create(data: ColaboradorFormData): Promise<CreateColaboradorResult> {
+    await assertRole(["admin", "gestor"], "criar colaborador");
+    validateRequiredString(data.nome, "Nome", 2, 120);
+    validateRequiredString(data.cpf, "CPF", 11, 20);
+
     const newColab: Colaborador = {
       id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
       nome: data.nome.trim(),
@@ -216,6 +228,7 @@ export const colaboradorService = {
 
     const firestoreCreate = (): Promise<string> => {
       const payload = {
+        ownerUid: auth.currentUser?.uid ?? "unknown",
         nome: newColab.nome,
         cpf: newColab.cpf,
         cargo: newColab.cargo,
@@ -248,6 +261,7 @@ export const colaboradorService = {
   },
 
   async update(id: string, data: Partial<ColaboradorFormData>): Promise<void> {
+    await assertRole(["admin", "gestor"], "atualizar colaborador");
     if (id.startsWith("local-")) {
       const local = getLocalColaboradores();
       const item = local.find((c) => c.id === id);
@@ -277,6 +291,7 @@ export const colaboradorService = {
   },
 
   async delete(id: string): Promise<void> {
+    await assertRole(["admin", "gestor"], "deletar colaborador");
     if (id.startsWith("local-")) {
       removeLocalColaborador(id);
       return;

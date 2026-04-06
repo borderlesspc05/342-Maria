@@ -3,6 +3,18 @@ import { vi } from "vitest";
 
 vi.mock("../lib/firebaseconfig", () => ({
   db: {},
+  auth: {
+    currentUser: {
+      uid: "user-1",
+      email: "user-1@test.local",
+    },
+  },
+}));
+
+vi.mock("./securityService", () => ({
+  assertRole: vi.fn().mockResolvedValue({ uid: "user-1", role: "admin" }),
+  validatePositiveNumber: (value: unknown) => Number(value),
+  validateRequiredString: (value: unknown) => String(value).trim(),
 }));
 
 describe("financeiroService", () => {
@@ -32,7 +44,7 @@ describe("financeiroService", () => {
 
     expect(id.startsWith("local-")).toBe(true);
 
-    const saved = localStorage.getItem("financeiro_transacoes_local");
+    const saved = localStorage.getItem("financeiro_transacoes_local:user-1");
     expect(saved).toBeTruthy();
   });
 
@@ -42,7 +54,7 @@ describe("financeiroService", () => {
 
     await financeiroService.updateStatus(id, "Pago", "admin-1", "PIX", "PIX-01", "ok");
 
-    const raw = localStorage.getItem("financeiro_transacoes_local");
+    const raw = localStorage.getItem("financeiro_transacoes_local:user-1");
     const transacoes = raw ? (JSON.parse(raw) as Array<Record<string, unknown>>) : [];
     const atualizada = transacoes.find((t) => t.id === id);
 

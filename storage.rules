@@ -1,19 +1,55 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function currentRole() {
+      return isSignedIn()
+        ? firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role
+        : null;
+    }
+
+    function isAdmin() {
+      return currentRole() == "admin";
+    }
+
+    function isGestor() {
+      return currentRole() == "gestor";
+    }
+
+    function isAdminOrGestor() {
+      return isAdmin() || isGestor();
+    }
+
+    function isValidFileUpload(maxBytes) {
+      return request.resource != null
+        && request.resource.size > 0
+        && request.resource.size <= maxBytes
+        && request.resource.contentType.matches('^(application|image|text)/.*$');
+    }
+
     match /caderno_virtual/{allPaths=**} {
-      allow read, write: if request.auth != null;
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && isValidFileUpload(10 * 1024 * 1024);
     }
+
     match /boletins_medicao/{allPaths=**} {
-      allow read, write: if request.auth != null;
+      allow read: if isSignedIn() && isAdminOrGestor();
+      allow write: if isSignedIn() && isAdminOrGestor() && isValidFileUpload(15 * 1024 * 1024);
     }
+
     match /documentos_financeiros/{allPaths=**} {
-      allow read, write: if request.auth != null;
+      allow read: if isSignedIn() && isAdminOrGestor();
+      allow write: if isSignedIn() && isAdminOrGestor() && isValidFileUpload(15 * 1024 * 1024);
     }
+
     match /backups/{allPaths=**} {
-      allow read: if request.auth != null;
+      allow read: if isSignedIn() && isAdmin();
       allow write: if false;
     }
+
     match /{allPaths=**} {
       allow read, write: if false;
     }

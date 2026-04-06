@@ -93,7 +93,7 @@ export const authService = {
       uid: crypto.randomUUID(),
       name: credentials.name,
       email: credentials.email,
-      role: credentials.role ?? "colaborador",
+      role: "colaborador",
       createdAt: new Date(),
       updatedAt: new Date(),
       password: credentials.password,
