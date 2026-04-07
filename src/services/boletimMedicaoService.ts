@@ -70,94 +70,7 @@ function convertToBoletim(doc: any): BoletimMedicao {
   };
 }
 
-// Mock data para fallback local (quando Firebase não está disponível)
-const mockBoletins: BoletimMedicao[] = [
-  {
-    id: "1",
-    numero: "BM-2024-001",
-    cliente: "Construtora ABC Ltda",
-    mesReferencia: "Outubro",
-    anoReferencia: 2024,
-    tipoServico: "Instalação",
-    status: "Emitido",
-    valor: 45000.0,
-    dataEmissao: new Date("2024-10-15"),
-    dataVencimento: new Date("2024-11-15"),
-    observacoes: "Instalação completa do sistema elétrico",
-    anexos: [],
-    criadoPor: "user1",
-    criadoEm: new Date("2024-10-15"),
-    atualizadoEm: new Date("2024-10-15"),
-  },
-  {
-    id: "2",
-    numero: "BM-2024-002",
-    cliente: "Empresa XYZ S.A.",
-    mesReferencia: "Outubro",
-    anoReferencia: 2024,
-    tipoServico: "Manutenção",
-    status: "Pendente",
-    valor: 12500.0,
-    dataEmissao: new Date("2024-10-20"),
-    dataVencimento: new Date("2024-11-20"),
-    observacoes: "Manutenção preventiva mensal",
-    anexos: [],
-    criadoPor: "user1",
-    criadoEm: new Date("2024-10-20"),
-    atualizadoEm: new Date("2024-10-20"),
-  },
-  {
-    id: "3",
-    numero: "BM-2024-003",
-    cliente: "Construtora ABC Ltda",
-    mesReferencia: "Setembro",
-    anoReferencia: 2024,
-    tipoServico: "Vistoria",
-    status: "Aguardando assinatura",
-    valor: 8500.0,
-    dataEmissao: new Date("2024-09-28"),
-    dataVencimento: new Date("2024-10-28"),
-    observacoes: "Vistoria técnica completa",
-    anexos: [],
-    criadoPor: "user1",
-    criadoEm: new Date("2024-09-28"),
-    atualizadoEm: new Date("2024-09-28"),
-  },
-  {
-    id: "4",
-    numero: "BM-2024-004",
-    cliente: "Construtora DEF",
-    mesReferencia: "Outubro",
-    anoReferencia: 2024,
-    tipoServico: "Instalação",
-    status: "Emitido",
-    valor: 32000.0,
-    dataEmissao: new Date("2024-10-10"),
-    dataVencimento: new Date("2024-11-10"),
-    observacoes: "",
-    anexos: [],
-    criadoPor: "user1",
-    criadoEm: new Date("2024-10-10"),
-    atualizadoEm: new Date("2024-10-10"),
-  },
-  {
-    id: "5",
-    numero: "BM-2024-005",
-    cliente: "Empresa XYZ S.A.",
-    mesReferencia: "Outubro",
-    anoReferencia: 2024,
-    tipoServico: "Manutenção",
-    status: "Aguardando assinatura",
-    valor: 15000.0,
-    dataEmissao: new Date("2024-10-25"),
-    dataVencimento: new Date("2024-11-25"),
-    observacoes: "Manutenção corretiva",
-    anexos: [],
-    criadoPor: "user1",
-    criadoEm: new Date("2024-10-25"),
-    atualizadoEm: new Date("2024-10-25"),
-  },
-];
+
 
 export const boletimMedicaoService = {
   async getAll(filters?: BoletimFilters): Promise<BoletimMedicao[]> {
@@ -202,30 +115,8 @@ export const boletimMedicaoService = {
 
       return boletins;
     } catch (error) {
-      console.error("Erro ao buscar boletins no Firebase, usando fallback:", error);
-      
-      // Fallback: usar mock ou aplicar filtros localmente
-      let filtered = [...mockBoletins];
-      if (filters) {
-        if (filters.mes) {
-          filtered = filtered.filter((b) => b.mesReferencia === filters.mes);
-        }
-        if (filters.ano) {
-          filtered = filtered.filter((b) => b.anoReferencia === filters.ano);
-        }
-        if (filters.cliente) {
-          filtered = filtered.filter((b) =>
-            b.cliente.toLowerCase().includes(filters.cliente!.toLowerCase())
-          );
-        }
-        if (filters.tipoServico) {
-          filtered = filtered.filter((b) => b.tipoServico === filters.tipoServico);
-        }
-        if (filters.status) {
-          filtered = filtered.filter((b) => b.status === filters.status);
-        }
-      }
-      return filtered.sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime());
+      console.error("Erro ao buscar boletins no Firebase:", error);
+      return [];
     }
   },
 
@@ -244,8 +135,8 @@ export const boletimMedicaoService = {
       }
       return null;
     } catch (error) {
-      console.error("Erro ao buscar boletim por ID, usando fallback:", error);
-      return mockBoletins.find((b) => b.id === id) || null;
+      console.error("Erro ao buscar boletim por ID:", error);
+      return null;
     }
   },
 
@@ -377,35 +268,11 @@ export const boletimMedicaoService = {
       };
     } catch (error) {
       console.error("Erro ao buscar estatísticas de boletins:", error);
-      
-      // Fallback local
-      let filtered = [...mockBoletins];
-      if (ano) {
-        filtered = filtered.filter((b) => b.anoReferencia === ano);
-      }
-      if (mes) {
-        filtered = filtered.filter((b) => b.mesReferencia === mes);
-      }
-
-      const totalEmitidoMes = filtered
-        .filter((b) => b.status === "Emitido")
-        .reduce((sum, b) => sum + b.valor, 0);
-
-      const saldoPendente = filtered
-        .filter(
-          (b) => b.status === "Pendente" || b.status === "Aguardando assinatura"
-        )
-        .reduce((sum, b) => sum + b.valor, 0);
-
-      const aguardandoAssinatura = filtered.filter(
-        (b) => b.status === "Aguardando assinatura"
-      ).length;
-
       return {
-        totalEmitidoMes,
-        saldoPendente,
-        totalBoletins: filtered.length,
-        aguardandoAssinatura,
+        totalEmitidoMes: 0,
+        saldoPendente: 0,
+        totalBoletins: 0,
+        aguardandoAssinatura: 0,
       };
     }
   },

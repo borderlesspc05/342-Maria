@@ -3,20 +3,17 @@ import { documentacoesService } from "./documentacoesService";
 import { boletimMedicaoService } from "./boletimMedicaoService";
 import { premioProdutividadeService } from "./premioProdutividadeService";
 
-/**
- * Serviço responsável por verificar automaticamente condições
- * que devem gerar notificações
- */
+async function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+const NOTIFICATION_DELAY_MS = 2000;
+
 export const notificacaoAutomaticaService = {
-  /**
-   * Verifica documentos vencendo ou vencidos e cria notificações
-   */
   async verificarDocumentos(userId: string): Promise<void> {
     try {
       const configuracoes = await notificacaoService.obterConfiguracoes(userId);
       const diasAntesVencimento = configuracoes.diasAntesVencimento || 7;
-
-      // Buscar todos os documentos
       const documentos = await documentacoesService.list();
 
       const agora = new Date();
@@ -28,9 +25,7 @@ export const notificacaoAutomaticaService = {
       for (const documento of documentos) {
         const dataValidade = new Date(documento.dataValidade);
 
-        // Verificar se está vencido
         if (dataValidade < agora && documento.status === "Vencido") {
-          // Verificar se já foi enviado alerta recentemente (últimas 24h)
           if (
             !documento.dataAlerta ||
             new Date().getTime() - new Date(documento.dataAlerta).getTime() >
@@ -43,16 +38,13 @@ export const notificacaoAutomaticaService = {
               documento.tipoDocumento,
               dataValidade
             );
+            await delay(NOTIFICATION_DELAY_MS);
           }
-        }
-
-        // Verificar se está vencendo
-        else if (
+        } else if (
           dataValidade > agora &&
           dataValidade <= dataLimiteVencendo &&
           (documento.status === "Vencendo" || documento.status === "Válido")
         ) {
-          // Verificar se já foi enviado alerta recentemente (últimas 24h)
           if (
             !documento.dataAlerta ||
             new Date().getTime() - new Date(documento.dataAlerta).getTime() >
@@ -65,6 +57,7 @@ export const notificacaoAutomaticaService = {
               documento.tipoDocumento,
               dataValidade
             );
+            await delay(NOTIFICATION_DELAY_MS);
           }
         }
       }
@@ -73,12 +66,8 @@ export const notificacaoAutomaticaService = {
     }
   },
 
-  /**
-   * Verifica boletins pendentes ou vencendo e cria notificações
-   */
   async verificarBoletins(userId: string): Promise<void> {
     try {
-      // Buscar todos os boletins
       const boletins = await boletimMedicaoService.getAll();
 
       const agora = new Date();
@@ -86,7 +75,6 @@ export const notificacaoAutomaticaService = {
       dataLimiteVencendo.setDate(dataLimiteVencendo.getDate() + 7);
 
       for (const boletim of boletins) {
-        // Verificar boletins pendentes
         if (boletim.status === "Pendente") {
           await notificacaoService.notificarBoletimPendente(
             userId,
@@ -95,9 +83,9 @@ export const notificacaoAutomaticaService = {
             boletim.numero,
             boletim.valor
           );
+          await delay(NOTIFICATION_DELAY_MS);
         }
 
-        // Verificar boletins vencendo
         if (boletim.dataVencimento) {
           const dataVencimento = new Date(boletim.dataVencimento);
 
@@ -113,6 +101,7 @@ export const notificacaoAutomaticaService = {
               boletim.numero,
               dataVencimento
             );
+            await delay(NOTIFICATION_DELAY_MS);
           }
         }
       }
@@ -121,12 +110,8 @@ export const notificacaoAutomaticaService = {
     }
   },
 
-  /**
-   * Verifica prêmios recém-lançados e cria notificações
-   */
   async verificarPremios(userId: string): Promise<void> {
     try {
-      // Buscar prêmios dos últimos 7 dias
       const premios = await premioProdutividadeService.list();
 
       const seteDiasAtras = new Date();
@@ -135,9 +120,7 @@ export const notificacaoAutomaticaService = {
       for (const premio of premios) {
         const dataCriacao = new Date(premio.criadoEm);
 
-        // Se foi criado nos últimos 7 dias, notificar
         if (dataCriacao >= seteDiasAtras) {
-          // Verificar se já existe notificação para este prêmio
           const notificacoesExistentes =
             await notificacaoService.listarPorUsuario(userId, {
               tipo: "premio_lancado",
@@ -155,6 +138,7 @@ export const notificacaoAutomaticaService = {
               premio.valor,
               premio.motivo
             );
+            await delay(NOTIFICATION_DELAY_MS);
           }
         }
       }
@@ -163,18 +147,20 @@ export const notificacaoAutomaticaService = {
     }
   },
 
-  /**
-   * Executa todas as verificações automáticas
-   */
   async executarVerificacaoCompleta(userId: string): Promise<void> {
     console.log("Iniciando verificação automática de notificações...");
 
     try {
-      await Promise.all([
-        this.verificarDocumentos(userId),
-        this.verificarBoletins(userId),
-        this.verificarPremios(userId),
-      ]);
+      await notificacaoService.deduplicarRepetidas(userId, 24);
+      await delay(NOTIFICATION_DELAY_MS);
+
+      await this.verificarDocumentos(userId);
+      await delay(NOTIFICATION_DELAY_MS);
+
+      await this.verificarBoletins(userId);
+      await delay(NOTIFICATION_DELAY_MS);
+
+      await this.verificarPremios(userId);
 
       console.log("Verificação automática concluída com sucesso");
     } catch (error) {
@@ -182,12 +168,6 @@ export const notificacaoAutomaticaService = {
     }
   },
 
-  /**
-   * Inicia um intervalo de verificação periódica
-   * @param userId ID do usuário
-   * @param intervalMinutos Intervalo em minutos (padrão: 60)
-   * @returns Função para cancelar o intervalo
-   */
   iniciarVerificacaoPeriodica(
     userId: string,
     intervalMinutos: number = 60
@@ -196,24 +176,18 @@ export const notificacaoAutomaticaService = {
       `Iniciando verificação periódica a cada ${intervalMinutos} minutos`
     );
 
-    // Executar imediatamente
     this.executarVerificacaoCompleta(userId);
 
-    // Configurar intervalo
     const intervalId = setInterval(() => {
       this.executarVerificacaoCompleta(userId);
     }, intervalMinutos * 60 * 1000);
 
-    // Retornar função para cancelar
     return () => {
       console.log("Cancelando verificação periódica");
       clearInterval(intervalId);
     };
   },
 
-  /**
-   * Verifica documentos de um colaborador específico
-   */
   async verificarDocumentosColaborador(
     userId: string,
     colaboradorId: string
@@ -223,7 +197,7 @@ export const notificacaoAutomaticaService = {
       const diasAntesVencimento = configuracoes.diasAntesVencimento || 7;
 
       const documentos = await documentacoesService.list({
-        colaboradorNome: undefined, // Buscar todos e filtrar
+        colaboradorNome: undefined,
       });
 
       const documentosColaborador = documentos.filter(
@@ -247,6 +221,7 @@ export const notificacaoAutomaticaService = {
             documento.tipoDocumento,
             dataValidade
           );
+          await delay(NOTIFICATION_DELAY_MS);
         } else if (dataValidade > agora && dataValidade <= dataLimiteVencendo) {
           await notificacaoService.notificarDocumentoVencendo(
             userId,
@@ -255,6 +230,7 @@ export const notificacaoAutomaticaService = {
             documento.tipoDocumento,
             dataValidade
           );
+          await delay(NOTIFICATION_DELAY_MS);
         }
       }
     } catch (error) {
@@ -262,9 +238,6 @@ export const notificacaoAutomaticaService = {
     }
   },
 
-  /**
-   * Limpa notificações antigas (mais de 30 dias)
-   */
   async limparNotificacoesAntigas(userId: string): Promise<void> {
     try {
       const notificacoes = await notificacaoService.listarPorUsuario(userId);
@@ -288,9 +261,6 @@ export const notificacaoAutomaticaService = {
     }
   },
 
-  /**
-   * Gera relatório de notificações
-   */
   async gerarRelatorio(userId: string): Promise<{
     totalNotificacoes: number;
     naoLidas: number;

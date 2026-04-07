@@ -45,9 +45,139 @@ function isMissingIndexError(error: unknown): boolean {
   );
 }
 
+// ============== THROTTLING E DEDUPLICAÇÃO ==============
+// Controle de rate-limiting: armazena último timestamp de cada tipo de notificação por recurso
+const notificationRateLimit = new Map<string, number>();
+const THROTTLE_INTERVAL_MS = 60 * 1000; // 1 minuto
+
+function getNotificationThrottleKey(
+  userId: string,
+  tipo: string,
+  resourceId?: string
+): string {
+  return `${userId}:${tipo}:${resourceId || "global"}`;
+}
+
+function canSendNotification(
+  userId: string,
+  tipo: string,
+  resourceId?: string
+): boolean {
+  const key = getNotificationThrottleKey(userId, tipo, resourceId);
+  const lastTime = notificationRateLimit.get(key);
+  const now = Date.now();
+
+  if (!lastTime || now - lastTime >= THROTTLE_INTERVAL_MS) {
+    notificationRateLimit.set(key, now);
+    return true;
+  }
+  return false;
+}
+
+// Função para verificar se já existe uma notificação similar não lida
+async function findExistingNotification(
+  userId: string,
+  tipo: string,
+  resourceId?: string,
+  horasAntes: number = 24
+): Promise<Notificacao | null> {
+  try {
+    const dataLimite = new Date();
+    dataLimite.setHours(dataLimite.getHours() - horasAntes);
+
+    const q = query(
+      collection(db, NOTIFICACOES_COLLECTION),
+      where("userId", "==", userId),
+      where("tipo", "==", tipo),
+      where("lida", "==", false),
+      orderBy("criadoEm", "desc"),
+      limit(1)
+    );
+
+    const snapshot = await getDocs(q);
+    
+    if (snapshot.docs.length === 0) return null;
+
+    const doc = snapshot.docs[0];
+    const notif = convertTimestampToDate(doc.data()) as Notificacao;
+    
+    // Se tem resourceId, verificar se é do mesmo recurso
+    if (resourceId && notif.metadata?.resourceId) {
+      if (notif.metadata.resourceId === resourceId) {
+        const timeSinceCreation = Date.now() - new Date(notif.criadoEm).getTime();
+        if (timeSinceCreation < horasAntes * 60 * 60 * 1000) {
+          return notif;
+        }
+      }
+    } else if (!resourceId) {
+      return notif;
+    }
+
+    return null;
+  } catch (error) {
+    console.error("Erro ao verificar notificação existente:", error);
+    return null;
+  }
+}
+
+// Função para remover notificações duplicadas antigas
+async function removeDuplicateNotifications(
+  userId: string,
+  tipo: string,
+  resourceId?: string,
+  keepCount: number = 1
+): Promise<void> {
+  try {
+    const q = query(
+      collection(db, NOTIFICACOES_COLLECTION),
+      where("userId", "==", userId),
+      where("tipo", "==", tipo),
+      orderBy("criadoEm", "desc")
+    );
+
+    const snapshot = await getDocs(q);
+    
+    if (snapshot.docs.length <= keepCount) return;
+
+    const batch = writeBatch(db);
+    let deletedCount = 0;
+
+    snapshot.docs.forEach((doc, index) => {
+      if (index >= keepCount) {
+        const data = doc.data() as any;
+        // Se tem resourceId, só deletar a mesma
+        if (resourceId && data.metadata?.resourceId !== resourceId) {
+          return;
+        }
+        batch.delete(doc.ref);
+        deletedCount++;
+      }
+    });
+
+    if (deletedCount > 0) {
+      await batch.commit();
+      console.log(`Removidas ${deletedCount} notificações duplicadas de ${userId} tipo ${tipo}`);
+    }
+  } catch (error) {
+    console.error("Erro ao remover notificações duplicadas:", error);
+  }
+}
+
+// ============== FUNÇÕES AUXILIARES ==============
 function sortByCriadoEmDesc(items: Notificacao[]): Notificacao[] {
   return [...items].sort(
     (a, b) => new Date(b.criadoEm).getTime() - new Date(a.criadoEm).getTime()
+  );
+}
+
+function getNotificationResourceId(notificacao: Notificacao): string {
+  const metadata = (notificacao.metadata || {}) as Record<string, unknown>;
+  return String(
+    metadata.resourceId ||
+      metadata.documentoId ||
+      metadata.boletimId ||
+      metadata.premioId ||
+      "global"
   );
 }
 
@@ -399,6 +529,48 @@ export const notificacaoService = {
     }
   },
 
+  async deduplicarRepetidas(userId: string, janelaHoras: number = 24): Promise<number> {
+    await assertOwnerOrRole(
+      userId,
+      ["admin", "gestor"],
+      "deduplicar notificações de outro usuário"
+    );
+
+    try {
+      const notificacoes = await this.listarPorUsuario(userId);
+      const limite = Date.now() - janelaHoras * 60 * 60 * 1000;
+      const recentes = sortByCriadoEmDesc(notificacoes).filter(
+        (n) => new Date(n.criadoEm).getTime() >= limite
+      );
+
+      const seen = new Set<string>();
+      const idsParaRemover: string[] = [];
+
+      for (const notificacao of recentes) {
+        const resourceId = getNotificationResourceId(notificacao);
+        const chave = `${notificacao.tipo}:${resourceId}:${notificacao.titulo}:${notificacao.mensagem}`;
+        if (seen.has(chave)) {
+          idsParaRemover.push(notificacao.id);
+        } else {
+          seen.add(chave);
+        }
+      }
+
+      if (idsParaRemover.length === 0) return 0;
+
+      const batch = writeBatch(db);
+      for (const id of idsParaRemover) {
+        batch.delete(doc(db, NOTIFICACOES_COLLECTION, id));
+      }
+      await batch.commit();
+
+      return idsParaRemover.length;
+    } catch (error) {
+      console.error("Erro ao deduplicar notificações:", error);
+      return 0;
+    }
+  },
+
   // ============== Estatísticas ==============
 
   async obterEstatisticas(userId: string): Promise<NotificacaoStats> {
@@ -589,6 +761,21 @@ export const notificacaoService = {
     dataVencimento: Date
   ): Promise<void> {
     await assertRole(["admin", "gestor"], "enviar notificação de documento vencendo");
+
+    if (!canSendNotification(userId, "documento_vencendo", documentoId)) {
+      return;
+    }
+
+    const existing = await findExistingNotification(
+      userId,
+      "documento_vencendo",
+      documentoId,
+      24
+    );
+    if (existing) {
+      return;
+    }
+
     const diasRestantes = Math.ceil(
       (dataVencimento.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
     );
@@ -603,12 +790,15 @@ export const notificacaoService = {
       link: `/documentacoes`,
       metadata: {
         documentoId,
+        resourceId: documentoId,
         colaboradorNome,
         tipoDocumento,
         dataVencimento,
         diasRestantes,
       },
     });
+
+    await removeDuplicateNotifications(userId, "documento_vencendo", documentoId, 1);
   },
 
   async notificarDocumentoVencido(
@@ -619,6 +809,21 @@ export const notificacaoService = {
     dataVencimento: Date
   ): Promise<void> {
     await assertRole(["admin", "gestor"], "enviar notificação de documento vencido");
+
+    if (!canSendNotification(userId, "documento_vencido", documentoId)) {
+      return;
+    }
+
+    const existing = await findExistingNotification(
+      userId,
+      "documento_vencido",
+      documentoId,
+      24
+    );
+    if (existing) {
+      return;
+    }
+
     await this.criar({
       userId,
       tipo: "documento_vencido",
@@ -628,11 +833,14 @@ export const notificacaoService = {
       link: `/documentacoes`,
       metadata: {
         documentoId,
+        resourceId: documentoId,
         colaboradorNome,
         tipoDocumento,
         dataVencimento,
       },
     });
+
+    await removeDuplicateNotifications(userId, "documento_vencido", documentoId, 1);
   },
 
   async notificarPremioLancado(
@@ -643,6 +851,21 @@ export const notificacaoService = {
     motivo: string
   ): Promise<void> {
     await assertRole(["admin", "gestor"], "enviar notificação de prêmio");
+
+    if (!canSendNotification(userId, "premio_lancado", premioId)) {
+      return;
+    }
+
+    const existing = await findExistingNotification(
+      userId,
+      "premio_lancado",
+      premioId,
+      24
+    );
+    if (existing) {
+      return;
+    }
+
     await this.criar({
       userId,
       tipo: "premio_lancado",
@@ -654,11 +877,14 @@ export const notificacaoService = {
       link: `/premios-produtividade`,
       metadata: {
         premioId,
+        resourceId: premioId,
         colaboradorNome,
         valor,
         motivo,
       },
     });
+
+    await removeDuplicateNotifications(userId, "premio_lancado", premioId, 1);
   },
 
   async notificarBoletimPendente(
@@ -669,6 +895,21 @@ export const notificacaoService = {
     valor: number
   ): Promise<void> {
     await assertRole(["admin", "gestor"], "enviar notificação de boletim pendente");
+
+    if (!canSendNotification(userId, "boletim_pendente", boletimId)) {
+      return;
+    }
+
+    const existing = await findExistingNotification(
+      userId,
+      "boletim_pendente",
+      boletimId,
+      24
+    );
+    if (existing) {
+      return;
+    }
+
     await this.criar({
       userId,
       tipo: "boletim_pendente",
@@ -680,11 +921,14 @@ export const notificacaoService = {
       link: `/boletins-medicao`,
       metadata: {
         boletimId,
+        resourceId: boletimId,
         cliente,
         numero,
         valor,
       },
     });
+
+    await removeDuplicateNotifications(userId, "boletim_pendente", boletimId, 1);
   },
 
   async notificarBoletimVencendo(
@@ -695,6 +939,21 @@ export const notificacaoService = {
     dataVencimento: Date
   ): Promise<void> {
     await assertRole(["admin", "gestor"], "enviar notificação de boletim vencendo");
+
+    if (!canSendNotification(userId, "boletim_vencendo", boletimId)) {
+      return;
+    }
+
+    const existing = await findExistingNotification(
+      userId,
+      "boletim_vencendo",
+      boletimId,
+      24
+    );
+    if (existing) {
+      return;
+    }
+
     const diasRestantes = Math.ceil(
       (dataVencimento.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
     );
@@ -708,11 +967,14 @@ export const notificacaoService = {
       link: `/boletins-medicao`,
       metadata: {
         boletimId,
+        resourceId: boletimId,
         cliente,
         numero,
         dataVencimento,
         diasRestantes,
       },
     });
+
+    await removeDuplicateNotifications(userId, "boletim_vencendo", boletimId, 1);
   },
 };

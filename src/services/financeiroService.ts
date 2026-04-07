@@ -97,208 +97,7 @@ const generateTempId = () => {
   return `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 };
 
-// Dados mockados como fallback (sem dependência de colaboradores externos)
-const getMockTransacoes = (): Transacao[] => {
-  const hoje = new Date();
-  const mesAtual = hoje.getMonth();
-  const anoAtual = hoje.getFullYear();
 
-  const placeholderColab = {
-    id: "exemplo",
-    nome: "Colaborador (exemplo)",
-    cpf: "",
-    cargo: "",
-    setor: "",
-  };
-
-  return [
-    {
-      id: generateTempId(),
-      colaboradorId: placeholderColab.id,
-      colaboradorNome: placeholderColab.nome,
-      cpf: placeholderColab.cpf,
-      cargo: placeholderColab.cargo,
-      setor: placeholderColab.setor,
-      tipoTransacao: "Adiantamento",
-      categoria: "Adiantamento Salarial",
-      valor: 1500.0,
-      descricao: "Adiantamento salarial do mês corrente",
-      dataVencimento: new Date(anoAtual, mesAtual, 5),
-      status: "Pendente",
-      observacoes: "Solicitação de adiantamento para despesas pessoais",
-      anexos: [],
-      criadoPor: "system",
-      criadoEm: new Date(anoAtual, mesAtual, 1),
-      atualizadoEm: new Date(anoAtual, mesAtual, 1),
-    },
-    {
-      id: generateTempId(),
-      colaboradorId: placeholderColab.id,
-      colaboradorNome: placeholderColab.nome,
-      cpf: placeholderColab.cpf,
-      cargo: placeholderColab.cargo,
-      setor: placeholderColab.setor,
-      tipoTransacao: "Pagamento",
-      categoria: "Salário",
-      valor: 4500.0,
-      descricao: "Pagamento de salário mensal",
-      dataVencimento: new Date(anoAtual, mesAtual, 5),
-      dataPagamento: new Date(anoAtual, mesAtual, 5),
-      status: "Pago",
-      formaPagamento: "Transferência",
-      numeroComprovante: "TRF-20250105-001",
-      observacoes: "Pagamento efetuado via transferência bancária",
-      anexos: [],
-      aprovadoPor: "admin-001",
-      aprovadoEm: new Date(anoAtual, mesAtual, 4),
-      pagoPor: "admin-001",
-      pagoEm: new Date(anoAtual, mesAtual, 5),
-      criadoPor: "system",
-      criadoEm: new Date(anoAtual, mesAtual - 1, 28),
-      atualizadoEm: new Date(anoAtual, mesAtual, 5),
-    },
-    {
-      id: generateTempId(),
-      colaboradorId: placeholderColab.id,
-      colaboradorNome: placeholderColab.nome,
-      cpf: placeholderColab.cpf,
-      cargo: placeholderColab.cargo,
-      setor: placeholderColab.setor,
-      tipoTransacao: "Reembolso",
-      categoria: "Reembolso",
-      valor: 350.0,
-      descricao: "Reembolso de despesas com transporte",
-      dataVencimento: new Date(anoAtual, mesAtual, 10),
-      status: "Aprovado",
-      formaPagamento: "PIX",
-      observacoes: "Reembolso aprovado, aguardando pagamento",
-      anexos: [],
-      aprovadoPor: "admin-001",
-      aprovadoEm: new Date(anoAtual, mesAtual, 8),
-      criadoPor: placeholderColab.id,
-      criadoEm: new Date(anoAtual, mesAtual, 7),
-      atualizadoEm: new Date(anoAtual, mesAtual, 8),
-    },
-    {
-      id: generateTempId(),
-      colaboradorId: placeholderColab.id,
-      colaboradorNome: placeholderColab.nome,
-      cpf: placeholderColab.cpf,
-      cargo: placeholderColab.cargo,
-      setor: placeholderColab.setor,
-      tipoTransacao: "Pagamento",
-      categoria: "Vale Transporte",
-      valor: 220.0,
-      descricao: "Vale transporte mensal",
-      dataVencimento: new Date(anoAtual, mesAtual, 1),
-      dataPagamento: new Date(anoAtual, mesAtual, 1),
-      status: "Pago",
-      formaPagamento: "PIX",
-      numeroComprovante: "PIX-20250101-002",
-      observacoes: "",
-      anexos: [],
-      aprovadoPor: "admin-001",
-      aprovadoEm: new Date(anoAtual, mesAtual - 1, 30),
-      pagoPor: "admin-001",
-      pagoEm: new Date(anoAtual, mesAtual, 1),
-      criadoPor: "system",
-      criadoEm: new Date(anoAtual, mesAtual - 1, 25),
-      atualizadoEm: new Date(anoAtual, mesAtual, 1),
-    },
-    {
-      id: generateTempId(),
-      colaboradorId: placeholderColab.id,
-      colaboradorNome: placeholderColab.nome,
-      cpf: placeholderColab.cpf,
-      cargo: placeholderColab.cargo,
-      setor: placeholderColab.setor,
-      tipoTransacao: "Pagamento",
-      categoria: "Vale Alimentação",
-      valor: 600.0,
-      descricao: "Vale alimentação mensal",
-      dataVencimento: new Date(anoAtual, mesAtual, 1),
-      dataPagamento: new Date(anoAtual, mesAtual, 1),
-      status: "Pago",
-      formaPagamento: "Transferência",
-      numeroComprovante: "TRF-20250101-003",
-      observacoes: "",
-      anexos: [],
-      aprovadoPor: "admin-001",
-      aprovadoEm: new Date(anoAtual, mesAtual - 1, 30),
-      pagoPor: "admin-001",
-      pagoEm: new Date(anoAtual, mesAtual, 1),
-      criadoPor: "system",
-      criadoEm: new Date(anoAtual, mesAtual - 1, 25),
-      atualizadoEm: new Date(anoAtual, mesAtual, 1),
-    },
-    {
-      id: generateTempId(),
-      colaboradorId: placeholderColab.id,
-      colaboradorNome: placeholderColab.nome,
-      cpf: placeholderColab.cpf,
-      cargo: placeholderColab.cargo,
-      setor: placeholderColab.setor,
-      tipoTransacao: "Pagamento",
-      categoria: "Prêmio",
-      valor: 800.0,
-      descricao: "Prêmio de produtividade - Dezembro/2024",
-      dataVencimento: new Date(anoAtual, mesAtual, 15),
-      status: "Aprovado",
-      formaPagamento: "PIX",
-      observacoes: "Prêmio aprovado, aguardando pagamento",
-      anexos: [],
-      aprovadoPor: "admin-001",
-      aprovadoEm: new Date(anoAtual, mesAtual, 10),
-      criadoPor: "admin-001",
-      criadoEm: new Date(anoAtual, mesAtual, 8),
-      atualizadoEm: new Date(anoAtual, mesAtual, 10),
-    },
-    {
-      id: generateTempId(),
-      colaboradorId: placeholderColab.id,
-      colaboradorNome: placeholderColab.nome,
-      cpf: placeholderColab.cpf,
-      cargo: placeholderColab.cargo,
-      setor: placeholderColab.setor,
-      tipoTransacao: "Reembolso",
-      categoria: "Reembolso",
-      valor: 150.0,
-      descricao: "Reembolso de despesas com material de escritório",
-      dataVencimento: new Date(anoAtual, mesAtual, 20),
-      status: "Pendente",
-      observacoes: "Aguardando aprovação do gestor",
-      anexos: [],
-      criadoPor: placeholderColab.id,
-      criadoEm: new Date(anoAtual, mesAtual, 12),
-      atualizadoEm: new Date(anoAtual, mesAtual, 12),
-    },
-    {
-      id: generateTempId(),
-      colaboradorId: placeholderColab.id,
-      colaboradorNome: placeholderColab.nome,
-      cpf: placeholderColab.cpf,
-      cargo: placeholderColab.cargo,
-      setor: placeholderColab.setor,
-      tipoTransacao: "Desconto",
-      categoria: "Despesa Operacional",
-      valor: 50.0,
-      descricao: "Desconto por atraso",
-      dataVencimento: new Date(anoAtual, mesAtual - 1, 15),
-      dataPagamento: new Date(anoAtual, mesAtual - 1, 15),
-      status: "Pago",
-      formaPagamento: undefined,
-      observacoes: "Desconto aplicado na folha de pagamento",
-      anexos: [],
-      aprovadoPor: "admin-001",
-      aprovadoEm: new Date(anoAtual, mesAtual - 1, 14),
-      pagoPor: "admin-001",
-      pagoEm: new Date(anoAtual, mesAtual - 1, 15),
-      criadoPor: "admin-001",
-      criadoEm: new Date(anoAtual, mesAtual - 1, 13),
-      atualizadoEm: new Date(anoAtual, mesAtual - 1, 15),
-    },
-  ];
-};
 
 export const financeiroService = {
   async list(filters: TransacaoFilters = {}): Promise<Transacao[]> {
@@ -362,17 +161,10 @@ export const financeiroService = {
         } as Transacao;
       });
 
-      // Se não houver dados no banco, usa lista local ou seed com mock
+      // Se não houver dados no banco, usa lista local
       if (transacoes.length === 0) {
         let local = getLocalTransacoes();
-        if (local.length === 0) {
-          const mock = getMockTransacoes().map((t, i) => ({
-            ...t,
-            id: `local-mock-${i}-${Date.now()}`,
-          }));
-          saveLocalTransacoes(mock);
-          local = mock;
-        }
+        
         transacoes = local;
         // Aplicar todos os filtros na lista local
         if (filters.colaboradorNome) {
@@ -407,7 +199,7 @@ export const financeiroService = {
         transacoes = transacoes.filter((t) => t.valor <= filters.valorMax!);
       }
 
-      // Aplicar filtro de colaboradorNome nos dados mockados também
+      // Aplicar filtro de colaboradorNome também
       if (filters.colaboradorNome && transacoes.length > 0) {
         const nomeLower = filters.colaboradorNome.toLowerCase();
         transacoes = transacoes.filter((t) =>
@@ -419,14 +211,7 @@ export const financeiroService = {
     } catch (error) {
       console.error("Erro ao listar transações:", error);
       let local = getLocalTransacoes();
-      if (local.length === 0) {
-        const mock = getMockTransacoes().map((t, i) => ({
-          ...t,
-          id: `local-mock-${i}-${Date.now()}`,
-        }));
-        saveLocalTransacoes(mock);
-        local = mock;
-      }
+      
 
       if (filters.colaboradorNome) {
         const nomeLower = filters.colaboradorNome.toLowerCase();
