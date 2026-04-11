@@ -74,6 +74,103 @@
     border-radius: 12px;
     padding: 14px 16px;
   }
+
+  .settings-input {
+    font-size: 15px;
+    color: #2d3748;
+    background: #ffffff;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 14px 16px;
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .settings-input:focus {
+    border-color: var(--theme-accent);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+  }
+
+  .profile-form {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .profile-image-field {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+
+  .profile-image-preview {
+    width: 96px;
+    height: 96px;
+    border-radius: 24px;
+    background: #e5e7eb;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #475569;
+    font-size: 42px;
+    overflow: hidden;
+  }
+
+  .profile-image-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .profile-image-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .file-button {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .file-button input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  .settings-actions {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .settings-button.primary {
+    background: var(--theme-accent);
+    color: #ffffff;
+  }
+
+  .settings-button.primary:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+
+  .settings-feedback {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .settings-feedback.error {
+    color: #e53e3e;
+  }
+
+  .settings-feedback.success {
+    color: #16a34a;
+  }
   
   /* Ações (botões) */
   .settings-item.action {

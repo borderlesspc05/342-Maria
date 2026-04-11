@@ -13,7 +13,11 @@ export default function Perfil() {
 
         <div className="perfil-card">
           <div className="perfil-avatar">
-            <HiUser />
+            {user?.profileImageUrl ? (
+              <img src={user.profileImageUrl} alt="Imagem de perfil" />
+            ) : (
+              <HiUser />
+            )}
           </div>
 
           <div className="perfil-info">
@@ -34,7 +38,11 @@ export default function Perfil() {
             <div className="perfil-item">
               <span className="label">Perfil</span>
               <span className="value">
-                {user?.role === "admin" ? "Administrador" : "Colaborador"}
+                {user?.role === "admin"
+                  ? "Administrador"
+                  : user?.role === "gestor"
+                  ? "Gestor"
+                  : "Colaborador"}
               </span>
             </div>
           </div>

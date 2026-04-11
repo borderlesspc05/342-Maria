@@ -1,11 +1,15 @@
 import { auth, db } from "../lib/firebaseconfig";
 import {
   createUserWithEmailAndPassword,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  updateProfile as updateFirebaseProfile,
   signInWithEmailAndPassword,
   signOut,
   sendPasswordResetEmail,
   type Unsubscribe,
   onAuthStateChanged,
+  updatePassword,
 } from "firebase/auth";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import type {
@@ -18,6 +22,10 @@ import getFirebaseErrorMessage from "../components/ui/ErrorMessage";
 interface FirebaseError {
   code?: string;
   message?: string;
+}
+
+function isValidPassword(password: string): boolean {
+  return password.length >= 6 && /[A-Z]/.test(password);
 }
 
 const firebaseAuthService = {
@@ -82,6 +90,10 @@ const firebaseAuthService = {
   },
 
   async register(credentials: RegisterCredentials): Promise<User> {
+    if (!isValidPassword(credentials.password)) {
+      throw new Error("A senha deve ter no mínimo 6 caracteres e pelo menos 1 letra maiúscula");
+    }
+
     try {
       const userCredential = await createUserWithEmailAndPassword(
         auth,
@@ -152,6 +164,87 @@ const firebaseAuthService = {
         callback(null);
       }
     });
+  },
+
+  async updateProfile(data: {
+    name?: string;
+    profileImageUrl?: string | null;
+  }): Promise<User> {
+    const firebaseUser = auth.currentUser;
+
+    if (!firebaseUser) {
+      throw new Error("Usuário não autenticado.");
+    }
+
+    try {
+      const userDocRef = doc(db, "users", firebaseUser.uid);
+      const userDoc = await getDoc(userDocRef);
+      const currentData = (userDoc.exists() ? (userDoc.data() as User) : null) ?? {
+        uid: firebaseUser.uid,
+        name: firebaseUser.displayName || firebaseUser.email?.split("@")[0] || "Usuário",
+        email: firebaseUser.email || "",
+        password: "",
+        role: "colaborador" as const,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const updatedUser: User = {
+        ...currentData,
+        name: data.name?.trim() || currentData.name,
+        profileImageUrl:
+          data.profileImageUrl === undefined
+            ? currentData.profileImageUrl ?? null
+            : data.profileImageUrl,
+        updatedAt: new Date(),
+      };
+
+      await setDoc(
+        userDocRef,
+        {
+          ...updatedUser,
+          updatedAt: new Date(),
+        },
+        { merge: true }
+      );
+
+      await updateFirebaseProfile(firebaseUser, {
+        displayName: updatedUser.name,
+        photoURL: updatedUser.profileImageUrl ?? null,
+      });
+
+      return updatedUser;
+    } catch (error) {
+      const message = getFirebaseErrorMessage(error as string | FirebaseError);
+      throw new Error(message);
+    }
+  },
+
+  async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    const firebaseUser = auth.currentUser;
+
+    if (!firebaseUser || !firebaseUser.email) {
+      throw new Error("Usuário não autenticado.");
+    }
+
+    try {
+      const credential = EmailAuthProvider.credential(
+        firebaseUser.email,
+        currentPassword
+      );
+
+      await reauthenticateWithCredential(firebaseUser, credential);
+      await updatePassword(firebaseUser, newPassword);
+
+      await setDoc(
+        doc(db, "users", firebaseUser.uid),
+        { updatedAt: new Date() },
+        { merge: true }
+      );
+    } catch (error) {
+      const message = getFirebaseErrorMessage(error as string | FirebaseError);
+      throw new Error(message);
+    }
   },
 
   async resetPassword(email: string): Promise<void> {

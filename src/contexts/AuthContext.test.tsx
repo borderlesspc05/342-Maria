@@ -10,6 +10,7 @@ const mockedAuthService = vi.hoisted(() => ({
   register: vi.fn(),
   logOut: vi.fn(),
   observeAuthState: vi.fn(),
+  updateProfile: vi.fn(),
   changePassword: vi.fn(),
 }));
 
@@ -44,6 +45,7 @@ describe("AuthContext", () => {
       callback(null);
       return vi.fn();
     });
+    mockedAuthService.updateProfile = vi.fn();
     mockedAuthService.changePassword = vi.fn();
     mockedGetFirebaseErrorMessage.mockReturnValue("Erro mapeado");
   });
@@ -225,6 +227,48 @@ describe("AuthContext", () => {
 
     await waitFor(() => {
       expect(result.current.error).toBe("Falha ao alterar senha");
+      expect(result.current.loading).toBe(false);
+    });
+  });
+
+  it("atualiza nome e imagem do perfil", async () => {
+    const user = createUser("admin");
+    mockedAuthService.observeAuthState.mockImplementation((callback) => {
+      callback(user);
+      return vi.fn();
+    });
+    const updatedUser: User = {
+      ...user,
+      name: "Maria Atualizada",
+      profileImageUrl: "data:image/png;base64,perfil",
+      updatedAt: new Date("2026-04-10T12:10:00.000Z"),
+    };
+    mockedAuthService.updateProfile.mockResolvedValue(updatedUser);
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.user?.uid).toBe("user-1");
+    });
+
+    await act(async () => {
+      await result.current.updateProfile({
+        name: "Maria Atualizada",
+        profileImageUrl: "data:image/png;base64,perfil",
+      });
+    });
+
+    expect(mockedAuthService.updateProfile).toHaveBeenCalledWith({
+      name: "Maria Atualizada",
+      profileImageUrl: "data:image/png;base64,perfil",
+    });
+
+    await waitFor(() => {
+      expect(result.current.user?.name).toBe("Maria Atualizada");
+      expect(result.current.user?.profileImageUrl).toBe(
+        "data:image/png;base64,perfil"
+      );
+      expect(result.current.error).toBeNull();
       expect(result.current.loading).toBe(false);
     });
   });

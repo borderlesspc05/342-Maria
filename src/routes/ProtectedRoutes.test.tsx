@@ -65,4 +65,15 @@ describe("ProtectedRoutes", () => {
 
     expect(screen.getByText("Painel Privado")).toBeInTheDocument();
   });
+
+  it("permite acesso quando rota aceita apenas gestor", () => {
+    mockedUseAuth.mockReturnValue({
+      user: { uid: "2", name: "Gestor", email: "gestor@y.com", password: "", createdAt: new Date(), updatedAt: new Date(), role: "gestor" },
+      loading: false,
+    });
+
+    renderRoute(["gestor"]);
+
+    expect(screen.getByText("Painel Privado")).toBeInTheDocument();
+  });
 });

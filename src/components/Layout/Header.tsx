@@ -108,6 +108,17 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, collapsed = false }) => {
     }
   };
 
+  const getRoleLabel = (role?: string) => {
+    switch (role) {
+      case "admin":
+        return "Administrador";
+      case "gestor":
+        return "Gestor";
+      default:
+        return "Colaborador";
+    }
+  };
+
   return (
     <header className={`header ${collapsed ? "sidebar-collapsed" : ""}`}>
       <div className="header-left">
@@ -226,17 +237,19 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, collapsed = false }) => {
               aria-label="Menu do usuário"
             >
               <div className="user-avatar">
-                <HiUser />
+                {user?.profileImageUrl ? (
+                  <img
+                    src={user.profileImageUrl}
+                    alt="Imagem de perfil"
+                    className="user-avatar-image"
+                  />
+                ) : (
+                  <HiUser />
+                )}
               </div>
               <div className="user-info">
                 <span className="user-name">{user?.name || "Usuário"}</span>
-                <span className="user-role">
-                  {user?.role === "admin"
-                    ? "Administrador"
-                    : user?.role === "gestor"
-                    ? "Gestor"
-                    : "Colaborador"}
-                </span>
+                <span className="user-role">{getRoleLabel(user?.role)}</span>
               </div>
             </button>
 

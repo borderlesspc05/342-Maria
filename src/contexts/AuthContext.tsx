@@ -18,6 +18,10 @@ interface AuthContextType {
   login: (credentials: LoginCredentials) => Promise<void>;
   register: (credentials: RegisterCredentials) => Promise<void>;
   logOut: () => Promise<void>;
+  updateProfile: (data: {
+    name?: string;
+    profileImageUrl?: string | null;
+  }) => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   clearError: () => void;
 }
@@ -70,6 +74,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const message = getFirebaseErrorMessage(err as string | FirebaseError | string);
       setError(message);
       setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateProfile = async (data: {
+    name?: string;
+    profileImageUrl?: string | null;
+  }) => {
+    if (!user) {
+      throw new Error("Usuário não autenticado.");
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      const updatedUser = await authService.updateProfile(data);
+      setUser(updatedUser);
+    } catch (err) {
+      const message = getFirebaseErrorMessage(err as string | FirebaseError | string);
+      setError(message);
+      throw new Error(message);
     } finally {
       setLoading(false);
     }
@@ -129,6 +156,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login,
     register,
     logOut,
+    updateProfile,
     changePassword,
     clearError,
   };

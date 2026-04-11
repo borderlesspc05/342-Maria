@@ -52,10 +52,10 @@ const Register: React.FC = () => {
 
     if (!formData.password) {
       newErrors.password = "Senha é obrigatória";
-    } else if (formData.password.length < 8) {
-      newErrors.password = "Senha deve ter no mínimo 8 caracteres";
-    } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(formData.password)) {
-      newErrors.password = "Senha deve conter maiúsculas, minúsculas e números";
+    } else if (formData.password.length < 6) {
+      newErrors.password = "Senha deve ter no mínimo 6 caracteres";
+    } else if (!/[A-Z]/.test(formData.password)) {
+      newErrors.password = "Senha deve conter pelo menos 1 letra maiúscula";
     }
 
     if (!formData.confirmPassword) {
@@ -183,7 +183,7 @@ const Register: React.FC = () => {
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
-                placeholder="Mínimo 8 caracteres"
+                placeholder="Mínimo 6 caracteres e 1 maiúscula"
                 className={errors.password ? "error" : ""}
               />
               <button

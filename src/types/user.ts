@@ -3,6 +3,7 @@ export interface User {
   name: string;
   email: string;
   password: string;
+  profileImageUrl?: string | null;
   createdAt: Date;
   updatedAt: Date;
   /** Papel do usuário no sistema */

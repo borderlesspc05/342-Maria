@@ -19,6 +19,9 @@ export default function getFirebaseErrorMessage(
     case "auth/wrong-password":
       return "Senha incorreta. Tente novamente.";
 
+    case "auth/invalid-credential":
+      return "Credenciais inválidas. Verifique a senha atual e tente novamente.";
+
     case "auth/invalid-email":
       return "Email inválido. Verifique o formato.";
 
@@ -36,6 +39,12 @@ export default function getFirebaseErrorMessage(
 
     case "auth/operation-not-allowed":
       return "Recuperação por e-mail não está habilitada. Entre em contato com o suporte.";
+
+    case "auth/requires-recent-login":
+      return "Por segurança, faça login novamente e tente alterar a senha.";
+
+    case "auth/weak-password":
+      return "A nova senha é fraca. Use ao menos 6 caracteres.";
 
     case "auth/invalid-action-code":
       return "Link expirado ou inválido. Solicite um novo link de recuperação.";

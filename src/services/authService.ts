@@ -9,6 +9,10 @@ export interface IAuthService {
   register(credentials: RegisterCredentials): Promise<User>;
   logOut(): Promise<void>;
   observeAuthState(callback: (user: User | null) => void): () => void;
+  updateProfile(data: {
+    name?: string;
+    profileImageUrl?: string | null;
+  }): Promise<User>;
   changePassword?(currentPassword: string, newPassword: string): Promise<void>;
   resetPassword?(email: string): Promise<void>;
 }

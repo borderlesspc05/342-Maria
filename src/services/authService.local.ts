@@ -10,7 +10,7 @@ const SESSION_KEY = "@app:session";
 
 /* 🔐 Regra única de senha */
 function isValidPassword(password: string): boolean {
-  return /^(?=.*[a-z])(?=.*[A-Z]).{6,}$/.test(password);
+  return password.length >= 6 && /[A-Z]/.test(password);
 }
 
 function loadUsers(): User[] {
@@ -80,7 +80,7 @@ export const authService = {
 
     if (!isValidPassword(credentials.password)) {
       throw new Error(
-        "A senha deve ter no mínimo 6 caracteres, com letra maiúscula e minúscula"
+        "A senha deve ter no mínimo 6 caracteres e pelo menos 1 letra maiúscula"
       );
     }
 
@@ -115,6 +115,34 @@ export const authService = {
     return () => {};
   },
 
+  async updateProfile(data: {
+    name?: string;
+    profileImageUrl?: string | null;
+  }): Promise<User> {
+    const sessionUser = loadSession();
+    if (!sessionUser) {
+      throw new Error("Usuário não autenticado");
+    }
+
+    const updatedUser: User = {
+      ...sessionUser,
+      name: data.name?.trim() || sessionUser.name,
+      profileImageUrl:
+        data.profileImageUrl === undefined
+          ? sessionUser.profileImageUrl ?? null
+          : data.profileImageUrl,
+      updatedAt: new Date(),
+    };
+
+    const users = loadUsers().map((u) =>
+      u.uid === sessionUser.uid ? updatedUser : u
+    );
+
+    saveUsers(users);
+    saveSession(updatedUser);
+    return updatedUser;
+  },
+
   async changePassword(
     currentPassword: string,
     newPassword: string
@@ -130,7 +158,7 @@ export const authService = {
 
     if (!isValidPassword(newPassword)) {
       throw new Error(
-        "A nova senha deve ter no mínimo 6 caracteres, com letra maiúscula e minúscula"
+        "A nova senha deve ter no mínimo 6 caracteres e pelo menos 1 letra maiúscula"
       );
     }
 

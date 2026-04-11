@@ -1,0 +1,30 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "test-auth-context",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"test",
+				"--",
+				"src/contexts/AuthContext.test.tsx"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "test-auth-after-password-policy",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"test",
+				"--",
+				"src/contexts/AuthContext.test.tsx",
+				"src/components/ChangePasswordModal.test.tsx"
+			],
+			"isBackground": false
+		}
+	]
+}
