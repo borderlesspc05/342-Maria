@@ -136,3 +136,9 @@ export const runBackupNow = functions.https.onCall(async (_data, context) => {
 
 // E-mail: desativado no deploy para plano Spark (grátis). Use o envio via EmailJS no frontend.
 // export { onNotificacaoCriada, sendTestEmail } from "./emailNotification.js";
+
+export {
+  createUserByAdmin,
+  deleteUserByAdmin,
+  bootstrapAdmin,
+} from "./userManagement.js";

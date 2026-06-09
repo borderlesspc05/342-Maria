@@ -38,6 +38,9 @@ export const notificacaoAutomaticaService = {
               documento.tipoDocumento,
               dataValidade
             );
+            if (!documento.id.startsWith("local-")) {
+              await documentacoesService.marcarAlertaEnviado(documento.id);
+            }
             await delay(NOTIFICATION_DELAY_MS);
           }
         } else if (
@@ -57,6 +60,9 @@ export const notificacaoAutomaticaService = {
               documento.tipoDocumento,
               dataValidade
             );
+            if (!documento.id.startsWith("local-")) {
+              await documentacoesService.marcarAlertaEnviado(documento.id);
+            }
             await delay(NOTIFICATION_DELAY_MS);
           }
         }

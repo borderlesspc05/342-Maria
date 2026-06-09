@@ -5,112 +5,17 @@
   padding: 0 20px 24px;
 }
 
-.dashboard::after {
-  content: "";
-  position: fixed;
-  top: 70px;
-  left: 280px;
-  right: 0;
-  bottom: 0;
-  background-image: url("/tela-fundo.png"), url("/login-bg.png"), linear-gradient(
-    160deg,
-    #bae6fd 0%,
-    #7dd3fc 25%,
-    #a5f3fc 50%,
-    #67e8f9 75%,
-    #22d3ee 100%
-  );
-  background-size: cover, cover, 100% 100%;
-  background-position: center, center, center;
-  background-repeat: no-repeat, no-repeat, no-repeat;
-  z-index: -1;
-  pointer-events: none;
-}
-
-.layout-main.sidebar-collapsed .dashboard::after {
-  left: 80px;
-}
-
-/* ========== RESPONSIVIDADE DASHBOARD ========== */
-@media (max-width: 768px) {
-  .dashboard::after {
-    left: 0;
-  }
-}
-
-.dashboard::before {
-  content: "";
-  position: fixed;
-  top: 70px;
-  left: 280px;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.03) 0%,
-    transparent 50%,
-    rgba(255, 255, 255, 0.02) 100%
-  );
-  z-index: -1;
-  pointer-events: none;
-}
-
-.layout-main.sidebar-collapsed .dashboard::before {
-  left: 80px;
-}
-
-@media (max-width: 768px) {
-  .dashboard::before {
-    left: 0;
-    top: 56px;
-  }
-}
-
-.dashboard > * {
-  position: relative;
-  z-index: 1;
-}
-
-.dashboard-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 32px;
-  flex-wrap: wrap;
-  gap: 16px;
-  animation: fadeIn 0.5s ease-out;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.dashboard-title {
-  font-size: 28px;
-  font-weight: 600;
-  color: #1a202c;
-  margin: 0 0 8px 0;
-}
-
-.dashboard-subtitle {
-  color: #718096;
-  font-size: 16px;
-  margin: 0;
-}
-
 .dashboard-date {
-  color: #4a5568;
-  font-size: 14px;
-  font-weight: 500;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
   text-transform: capitalize;
-  padding: 8px 16px;
-  background: #f7fafc;
-  border-radius: 8px;
+  padding: 10px 16px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  white-space: nowrap;
 }
 
 .stats-grid {

@@ -45,6 +45,11 @@ service firebase.storage {
       allow write: if isSignedIn() && isAdminOrGestor() && isValidFileUpload(15 * 1024 * 1024);
     }
 
+    match /documentacoes/{allPaths=**} {
+      allow read: if isSignedIn() && isAdminOrGestor();
+      allow write: if isSignedIn() && isAdminOrGestor() && isValidFileUpload(10 * 1024 * 1024);
+    }
+
     match /backups/{allPaths=**} {
       allow read: if isSignedIn() && isAdmin();
       allow write: if false;

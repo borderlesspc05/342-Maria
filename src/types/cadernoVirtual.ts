@@ -29,6 +29,7 @@ export interface LancamentoDiario {
   observacoes?: string;
   anexos: AnexoLancamento[];
   criadoPor: string;
+  criadoPorNome?: string;
   criadoEm: Date;
   atualizadoEm: Date;
 }

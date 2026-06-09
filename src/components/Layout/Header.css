@@ -423,7 +423,7 @@
 .user-menu-header {
   padding: 20px;
   background: var(--theme-primary-bg);
-  color: #000;
+  color: var(--theme-primary-text);
   display: flex;
   align-items: center;
   gap: 12px;
@@ -432,15 +432,16 @@
 .user-avatar-large {
   width: 48px;
   height: 48px;
-  background: rgba(0, 0, 0, 0.12);
+  background: rgba(255, 255, 255, 0.2);
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 24px;
-  color: #000;
+  color: var(--theme-primary-text);
   backdrop-filter: blur(10px);
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 .user-avatar-large img {
@@ -458,7 +459,7 @@
 .user-name-large {
   font-size: 15px;
   font-weight: 600;
-  color: #000;
+  color: var(--theme-primary-text);
   margin: 0 0 4px 0;
   white-space: nowrap;
   overflow: hidden;
@@ -467,7 +468,7 @@
 
 .user-email {
   font-size: 13px;
-  color: #1a1a1a;
+  color: rgba(255, 255, 255, 0.85);
   margin: 0;
   white-space: nowrap;
   overflow: hidden;

@@ -664,6 +664,7 @@ const DocumentoModal: React.FC<DocumentoModalProps> = ({
     dataValidade: documento?.dataValidade || new Date(),
     observacoes: documento?.observacoes || "",
     anexos: [],
+    anexosExistentes: documento?.anexos || [],
   });
 
   const handleChange = (
@@ -738,6 +739,7 @@ const DocumentoModal: React.FC<DocumentoModalProps> = ({
       numeroDocumento: formData.numeroDocumento
         ? formData.numeroDocumento.replace(/\D/g, "")
         : "",
+      anexosExistentes: formData.anexosExistentes,
     };
 
     onSave(dataToSave);
@@ -855,6 +857,11 @@ const DocumentoModal: React.FC<DocumentoModalProps> = ({
               accept=".pdf,.jpg,.jpeg,.png"
               onChange={handleFileChange}
             />
+            {formData.anexosExistentes && formData.anexosExistentes.length > 0 && (
+              <p className="documentacoes-files-count">
+                {formData.anexosExistentes.length} anexo(s) já salvo(s)
+              </p>
+            )}
             {formData.anexos && formData.anexos.length > 0 && (
               <p className="documentacoes-files-count">
                 {formData.anexos.length} arquivo(s) selecionado(s)

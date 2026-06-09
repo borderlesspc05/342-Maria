@@ -257,7 +257,15 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, collapsed = false }) => {
               <div className="dropdown-menu user-menu">
                 <div className="user-menu-header">
                   <div className="user-avatar-large">
-                    <HiUser />
+                    {user?.profileImageUrl ? (
+                      <img
+                        src={user.profileImageUrl}
+                        alt=""
+                        className="user-avatar-image"
+                      />
+                    ) : (
+                      <HiUser />
+                    )}
                   </div>
                   <div className="user-details">
                     <p className="user-name-large">{user?.name || "Usuário"}</p>

@@ -9,3 +9,4 @@ export declare const scheduledBackup: functions.CloudFunction<unknown>;
  * 1ª geração = compatível com plano Spark (grátis).
  */
 export declare const runBackupNow: functions.HttpsFunction & functions.Runnable<any>;
+export { createUserByAdmin, deleteUserByAdmin, bootstrapAdmin, } from "./userManagement.js";

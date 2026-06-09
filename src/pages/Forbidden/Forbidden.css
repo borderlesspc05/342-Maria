@@ -1,0 +1,75 @@
+.forbidden-page {
+  min-height: calc(100vh - 70px);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.forbidden-card {
+  max-width: 420px;
+  text-align: center;
+  padding: 40px 32px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(14px);
+  border-radius: var(--radius-xl);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: var(--shadow-lg);
+  animation: forbiddenIn 0.5s ease-out both;
+}
+
+@keyframes forbiddenIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.forbidden-icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(245, 158, 11, 0.12));
+  color: #dc2626;
+  font-size: 32px;
+}
+
+.forbidden-card h1 {
+  margin: 0 0 12px;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  color: var(--color-text);
+}
+
+.forbidden-card p {
+  margin: 0 0 24px;
+  color: var(--color-text-muted);
+  line-height: 1.6;
+  font-size: 0.95rem;
+}
+
+.forbidden-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border-radius: var(--radius-md);
+  background: var(--theme-primary-bg);
+  color: var(--theme-primary-text);
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-decoration: none;
+  box-shadow: 0 4px 14px var(--theme-primary-shadow);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.forbidden-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px var(--theme-primary-shadow);
+}

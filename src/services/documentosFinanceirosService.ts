@@ -34,6 +34,7 @@ import {
   validatePositiveNumber,
   validateRequiredString,
 } from "./securityService";
+import { isFirebaseConfigured } from "../utils/firebaseEnv";
 
 const NOTAS_FISCAIS_COLLECTION = "notas_fiscais";
 const COMPROVANTES_COLLECTION = "comprovantes_bancarios";
@@ -41,11 +42,6 @@ const STORAGE_PATH = "documentos_financeiros";
 const LOCAL_NOTAS_KEY = "documentos_financeiros_notas_local";
 const CREATE_TIMEOUT_MS = 20000;
 const LIST_TIMEOUT_MS = 10000;
-
-function isFirebaseConfigured(): boolean {
-  const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
-  return typeof projectId === "string" && projectId.trim().length > 0;
-}
 
 function getScopedLocalKey(): string {
   const uid = auth.currentUser?.uid ?? "anon";

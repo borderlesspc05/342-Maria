@@ -26,6 +26,9 @@ import type {
   TreinamentoFormData,
 } from "../types/documentacoes";
 import { assertRole, validateRequiredString } from "./securityService";
+import { isFirebaseConfigured } from "../utils/firebaseEnv";
+import { uploadAnexos } from "./anexoService";
+import type { AnexoDocumento } from "../types/documentacoes";
 
 const documentosCollection = collection(db, "documentacoes");
 const treinamentosCollection = collection(db, "treinamentos");
@@ -33,9 +36,58 @@ const LOCAL_DOCS_KEY = "documentacoes_documentos_local";
 const CREATE_TIMEOUT_MS = 15000;
 const LIST_TIMEOUT_MS = 10000;
 
-function isFirebaseConfigured(): boolean {
-  const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
-  return typeof projectId === "string" && projectId.trim().length > 0;
+const STORAGE_BASE_PATH = "documentacoes";
+
+function serializeAnexosParaFirestore(anexos: AnexoDocumento[]) {
+  return anexos.map((a) => ({
+    id: a.id,
+    nome: a.nome,
+    tipo: a.tipo,
+    url: a.url,
+    tamanho: a.tamanho,
+    dataUpload: Timestamp.fromDate(
+      a.dataUpload instanceof Date ? a.dataUpload : new Date(a.dataUpload)
+    ),
+    ...(a.storagePath ? { storagePath: a.storagePath } : {}),
+  }));
+}
+
+function mapRawAnexo(raw: Record<string, unknown>): AnexoDocumento {
+  return {
+    id: (raw.id as string) || "",
+    nome: (raw.nome as string) || "",
+    tipo: (raw.tipo as string) || "",
+    url: (raw.url as string) || "",
+    tamanho: (raw.tamanho as number) || 0,
+    dataUpload:
+      raw.dataUpload instanceof Timestamp
+        ? raw.dataUpload.toDate()
+        : raw.dataUpload
+          ? new Date(raw.dataUpload as string)
+          : new Date(),
+    ...(raw.storagePath ? { storagePath: raw.storagePath as string } : {}),
+  };
+}
+
+async function resolveAnexos(
+  files?: File[],
+  existentes?: AnexoDocumento[]
+): Promise<AnexoDocumento[]> {
+  const base = existentes ?? [];
+  if (!files?.length) return base;
+  const uploaded = await uploadAnexos(files, STORAGE_BASE_PATH);
+  return [
+    ...base,
+    ...uploaded.map((a) => ({
+      id: a.id,
+      nome: a.nome,
+      tipo: a.tipo,
+      url: a.url,
+      tamanho: a.tamanho,
+      dataUpload: a.dataUpload,
+      ...(a.storagePath ? { storagePath: a.storagePath } : {}),
+    })),
+  ];
 }
 
 function getScopedLocalKey(): string {
@@ -134,7 +186,7 @@ const mapSnapshotToDocumento = (
     dataValidade,
     status,
     observacoes: data.observacoes,
-    anexos: data.anexos || [],
+    anexos: ((data.anexos as Record<string, unknown>[]) || []).map(mapRawAnexo),
     alertaEnviado: data.alertaEnviado || false,
     dataAlerta: data.dataAlerta ? data.dataAlerta.toDate() : undefined,
     criadoPor: data.criadoPor,
@@ -261,6 +313,7 @@ export const documentacoesService = {
     const status = calcularStatusDocumento(dataValidade);
     const now = new Date();
     const localId = `local-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const anexosResolvidos = await resolveAnexos(data.anexos, data.anexosExistentes);
 
     if (!isFirebaseConfigured()) {
       const doc: Documento = {
@@ -277,7 +330,7 @@ export const documentacoesService = {
         dataValidade,
         status,
         observacoes: data.observacoes,
-        anexos: [],
+        anexos: anexosResolvidos,
         alertaEnviado: false,
         criadoPor,
         criadoEm: now,
@@ -304,7 +357,7 @@ export const documentacoesService = {
         .toLowerCase()
         .split(" ")
         .filter((word) => word.length > 0),
-      anexos: [],
+      anexos: serializeAnexosParaFirestore(anexosResolvidos),
       alertaEnviado: false,
       criadoPor,
       criadoEm: Timestamp.now(),
@@ -333,7 +386,7 @@ export const documentacoesService = {
         dataValidade,
         status,
         observacoes: data.observacoes,
-        anexos: [],
+        anexos: anexosResolvidos,
         alertaEnviado: false,
         criadoPor,
         criadoEm: now,
@@ -349,6 +402,11 @@ export const documentacoesService = {
     data: Partial<DocumentoFormData>
   ): Promise<void> {
     await assertRole(["admin", "gestor"], "atualizar documentação");
+    const anexosResolvidos = await resolveAnexos(
+      data.anexos,
+      data.anexosExistentes
+    );
+
     if (id.startsWith("local-")) {
       const list = getLocalDocumentos();
       const idx = list.findIndex((d) => d.id === id);
@@ -366,7 +424,7 @@ export const documentacoesService = {
         dataEmissao: data.dataEmissao ?? current.dataEmissao,
         status: calcularStatusDocumento(dataValidade),
         atualizadoEm: new Date(),
-        anexos: current.anexos,
+        anexos: anexosResolvidos.length ? anexosResolvidos : current.anexos,
       };
       saveLocalDocumento(list[idx]);
       return;
@@ -401,6 +459,9 @@ export const documentacoesService = {
     if (data.cpf) updateData.cpf = data.cpf;
     if (data.cargo) updateData.cargo = data.cargo;
     if (data.setor) updateData.setor = data.setor;
+    if (data.anexos?.length || data.anexosExistentes !== undefined) {
+      updateData.anexos = serializeAnexosParaFirestore(anexosResolvidos);
+    }
 
     await updateDoc(doc(documentosCollection, id), updateData);
   },

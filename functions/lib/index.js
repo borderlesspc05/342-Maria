@@ -99,7 +99,15 @@ export const runBackupNow = functions.https.onCall(async (_data, context) => {
     if (!context.auth) {
         throw new functions.https.HttpsError("unauthenticated", "É necessário estar logado para executar o backup.");
     }
+    const db = getFirestore();
+    const requesterUid = context.auth.uid;
+    const requesterSnap = await db.collection("users").doc(requesterUid).get();
+    const requesterRole = requesterSnap.data()?.role;
+    if (requesterRole !== "admin") {
+        throw new functions.https.HttpsError("permission-denied", "Apenas administradores podem executar backup manual.");
+    }
     return await runBackup();
 });
 // E-mail: desativado no deploy para plano Spark (grátis). Use o envio via EmailJS no frontend.
 // export { onNotificacaoCriada, sendTestEmail } from "./emailNotification.js";
+export { createUserByAdmin, deleteUserByAdmin, bootstrapAdmin, } from "./userManagement.js";

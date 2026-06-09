@@ -1,16 +1,14 @@
-import { db } from "../lib/firebaseconfig";
+import { db, functions } from "../lib/firebaseconfig";
 import {
   collection,
   doc,
   getDocs,
   setDoc,
-  deleteDoc,
   query,
   orderBy,
   Timestamp,
 } from "firebase/firestore";
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../lib/firebaseconfig";
+import { httpsCallable } from "firebase/functions";
 import type { User, RegisterCredentials } from "../types/user";
 import getFirebaseErrorMessage from "../components/ui/ErrorMessage";
 import {
@@ -19,6 +17,7 @@ import {
   validateRequiredString,
   validateRole,
 } from "./securityService";
+import { isFirebaseConfigured } from "../utils/firebaseEnv";
 
 interface FirebaseError {
   code?: string;
@@ -28,9 +27,6 @@ interface FirebaseError {
 const USERS_COLLECTION = "users";
 
 export const userManagementService = {
-  /**
-   * Lista todos os usuários do sistema
-   */
   async listAll(): Promise<User[]> {
     await assertRole(["admin"], "listar usuários");
     try {
@@ -39,13 +35,13 @@ export const userManagementService = {
         orderBy("createdAt", "desc")
       );
       const snapshot = await getDocs(q);
-      return snapshot.docs.map((doc) => {
-        const data = doc.data();
+      return snapshot.docs.map((userDoc) => {
+        const data = userDoc.data();
         return {
-          uid: doc.id,
+          uid: userDoc.id,
           name: data.name || "",
           email: data.email || "",
-          password: "", // Nunca retornamos senhas
+          password: "",
           role: data.role || "colaborador",
           createdAt: data.createdAt?.toDate() || new Date(),
           updatedAt: data.updatedAt?.toDate() || new Date(),
@@ -57,53 +53,49 @@ export const userManagementService = {
     }
   },
 
-  /**
-   * Cria um novo usuário no Firebase Auth e Firestore
-   */
   async create(credentials: RegisterCredentials): Promise<User> {
     await assertRole(["admin"], "criar usuários");
     const name = validateRequiredString(credentials.name, "Nome", 2, 120);
     const email = validateEmail(credentials.email);
     const role = validateRole(credentials.role || "colaborador");
 
+    if (!isFirebaseConfigured()) {
+      throw new Error("Firebase não configurado. Não é possível criar usuários.");
+    }
+
     try {
-      // Cria no Firebase Authentication
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
+      const createUserFn = httpsCallable<
+        { email: string; password: string; name: string; role: string },
+        { uid: string; name: string; email: string; role: User["role"] }
+      >(functions, "createUserByAdmin");
+
+      const result = await createUserFn({
         email,
-        credentials.password
-      );
-
-      const firebaseUser = userCredential.user;
-
-      // Cria o documento no Firestore
-      const newUser: User = {
-        uid: firebaseUser.uid,
+        password: credentials.password,
         name,
-        email,
-        password: "", // Não armazenamos senha no Firestore
         role,
+      });
+
+      const created = result.data;
+      return {
+        uid: created.uid,
+        name: created.name,
+        email: created.email,
+        password: "",
+        role: created.role,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
-
-      await setDoc(doc(db, USERS_COLLECTION, firebaseUser.uid), {
-        ...newUser,
-        createdAt: Timestamp.fromDate(newUser.createdAt),
-        updatedAt: Timestamp.fromDate(newUser.updatedAt),
-      });
-
-      return newUser;
-    } catch (error: any) {
+    } catch (error: unknown) {
       const message = getFirebaseErrorMessage(error as string | FirebaseError);
       throw new Error(message);
     }
   },
 
-  /**
-   * Atualiza um usuário existente (apenas dados do Firestore, não senha)
-   */
-  async update(uid: string, data: Partial<Pick<User, "name" | "email" | "role">>): Promise<void> {
+  async update(
+    uid: string,
+    data: Partial<Pick<User, "name" | "email" | "role">>
+  ): Promise<void> {
     await assertRole(["admin"], "atualizar usuários");
     const payload: Partial<Pick<User, "name" | "email" | "role">> = {};
     if (data.name !== undefined) {
@@ -132,21 +124,19 @@ export const userManagementService = {
     }
   },
 
-  /**
-   * Deleta um usuário (do Auth e Firestore)
-   */
   async delete(uid: string): Promise<void> {
     await assertRole(["admin"], "deletar usuários");
-    try {
-      // Deleta do Firestore primeiro
-      await deleteDoc(doc(db, USERS_COLLECTION, uid));
 
-      // Nota: Para deletar do Firebase Auth, precisaríamos estar logados como esse usuário
-      // ou usar Admin SDK. Por enquanto, apenas deletamos do Firestore.
-      // O usuário ainda poderá fazer login, mas não terá acesso ao sistema.
-      console.warn(
-        "Usuário removido do Firestore. Para remover completamente, use o Firebase Console."
+    if (!isFirebaseConfigured()) {
+      throw new Error("Firebase não configurado.");
+    }
+
+    try {
+      const deleteUserFn = httpsCallable<{ uid: string }, { success: boolean }>(
+        functions,
+        "deleteUserByAdmin"
       );
+      await deleteUserFn({ uid });
     } catch (error) {
       console.error("Erro ao deletar usuário:", error);
       throw new Error("Não foi possível deletar o usuário");

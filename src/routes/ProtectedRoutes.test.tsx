@@ -33,7 +33,7 @@ describe("ProtectedRoutes", () => {
 
     renderRoute();
 
-    expect(screen.getByText("Carregando...")).toBeInTheDocument();
+    expect(screen.getByText("Verificando sua sessão...")).toBeInTheDocument();
   });
 
   it("redireciona para login quando nao autenticado", () => {
@@ -44,7 +44,7 @@ describe("ProtectedRoutes", () => {
     expect(screen.getByText("Tela Login")).toBeInTheDocument();
   });
 
-  it("redireciona para dashboard quando role nao permitida", () => {
+  it("exibe pagina de acesso restrito quando role nao permitida", () => {
     mockedUseAuth.mockReturnValue({
       user: { uid: "1", name: "Teste", email: "x@y.com", password: "", createdAt: new Date(), updatedAt: new Date(), role: "colaborador" },
       loading: false,
@@ -52,7 +52,7 @@ describe("ProtectedRoutes", () => {
 
     renderRoute(["admin"]);
 
-    expect(screen.getByText("Tela Dashboard")).toBeInTheDocument();
+    expect(screen.getByText("Acesso restrito")).toBeInTheDocument();
   });
 
   it("renderiza conteudo protegido quando role permitida", () => {

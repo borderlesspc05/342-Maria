@@ -14,6 +14,7 @@ import {
   getDownloadURL,
   deleteObject,
 } from "firebase/storage";
+import { isFirebaseConfigured } from "../utils/firebaseEnv";
 
 export interface StorageUploadResult {
   id: string;
@@ -26,8 +27,7 @@ export interface StorageUploadResult {
 }
 
 function isStorageAvailable(): boolean {
-  const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
-  return typeof projectId === "string" && projectId.trim().length > 0;
+  return isFirebaseConfigured();
 }
 
 function sanitizeFileName(name: string): string {

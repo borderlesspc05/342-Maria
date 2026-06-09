@@ -21,6 +21,7 @@ export interface AnexoDocumento {
   url: string;
   tamanho: number;
   dataUpload: Date;
+  storagePath?: string;
 }
 
 export interface Documento {
@@ -58,6 +59,7 @@ export interface DocumentoFormData {
   dataValidade: Date;
   observacoes?: string;
   anexos?: File[];
+  anexosExistentes?: AnexoDocumento[];
 }
 
 export interface DocumentoFilters {

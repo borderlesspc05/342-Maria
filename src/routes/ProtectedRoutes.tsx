@@ -1,7 +1,9 @@
 import { useAuth } from "../hooks/useAuth";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { paths } from "./paths";
 import type { ReactNode } from "react";
+import { AppLoading } from "../components/ui/AppLoading";
+import Forbidden from "../pages/Forbidden/Forbidden";
 
 interface ProtectedRoutesProps {
   children: ReactNode;
@@ -11,18 +13,19 @@ interface ProtectedRoutesProps {
 
 export function ProtectedRoutes({ children, allowedRoles }: ProtectedRoutesProps) {
   const { user, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
-    return <div>Carregando...</div>;
+    return <AppLoading label="Verificando sua sessão..." />;
   }
 
   if (!user) {
-    return <Navigate to={paths.login} replace />;
+    return <Navigate to={paths.login} replace state={{ from: location.pathname }} />;
   }
 
   if (allowedRoles && allowedRoles.length > 0) {
     if (!user.role || !allowedRoles.includes(user.role)) {
-      return <Navigate to={paths.dashboard} replace />;
+      return <Forbidden />;
     }
   }
 

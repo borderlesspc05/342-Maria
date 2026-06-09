@@ -69,8 +69,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           aria-label="Fechar menu"
         />
       )}
-      <Sidebar collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
+      <Sidebar
+        collapsed={sidebarCollapsed}
+        onToggle={toggleSidebar}
+        onNavigate={() => {
+          if (isMobile) setSidebarCollapsed(true);
+        }}
+      />
       <div className={`layout-main ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+        <div className="app-shell-bg" aria-hidden="true" />
         <Header onMenuClick={toggleSidebar} collapsed={sidebarCollapsed} />
         <main className="layout-content">
           <div className="content-wrapper">

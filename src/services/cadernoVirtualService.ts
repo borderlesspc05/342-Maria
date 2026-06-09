@@ -29,6 +29,7 @@ import {
   getDataScope,
   validateRequiredString,
 } from "./securityService";
+import { isFirebaseConfigured } from "../utils/firebaseEnv";
 
 const STORAGE_BASE_PATH_CADERNO = "caderno_virtual";
 
@@ -125,11 +126,6 @@ function serializeAnexosParaFirestore(anexos: AnexoLancamento[]): Record<string,
 
 /** Cache do último resultado Firebase para não perder a lista quando a consulta falha (ex.: após atualizar status) */
 let lastFirebaseItems: LancamentoDiario[] = [];
-
-function isFirebaseConfigured(): boolean {
-  const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
-  return typeof projectId === "string" && projectId.trim().length > 0;
-}
 
 function timeoutPromise<T>(ms: number, message: string): Promise<T> {
   return new Promise((_, reject) =>
@@ -239,6 +235,7 @@ const mapSnapshotToLancamento = (
     observacoes: data.observacoes,
     anexos: ((data.anexos as Record<string, unknown>[]) || []).map(mapRawAnexo),
     criadoPor: data.criadoPor,
+    criadoPorNome: data.criadoPorNome,
     criadoEm: data.criadoEm ? data.criadoEm.toDate() : new Date(),
     atualizadoEm: data.atualizadoEm ? data.atualizadoEm.toDate() : new Date(),
   };

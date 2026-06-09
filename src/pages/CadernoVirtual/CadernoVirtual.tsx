@@ -492,6 +492,7 @@ const LancamentosDiarios: React.FC = () => {
                   <th>Tipo</th>
                   <th>Descrição</th>
                   <th>Colaborador</th>
+                  <th>Autor</th>
                   <th>Valor</th>
                   <th>Status</th>
                   <th>Anexos</th>
@@ -522,6 +523,7 @@ const LancamentosDiarios: React.FC = () => {
                       </div>
                     </td>
                     <td>{lancamento.colaboradorNome}</td>
+                    <td>{lancamento.criadoPorNome || "—"}</td>
                     <td className="lancamentos-valor">
                       {formatCurrency(lancamento.valor)}
                     </td>

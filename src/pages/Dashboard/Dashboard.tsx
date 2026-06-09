@@ -26,6 +26,7 @@ import { premioProdutividadeService } from "../../services/premioProdutividadeSe
 import { cadernoVirtualService } from "../../services/cadernoVirtualService";
 import { useNotificationContext } from "../../contexts/NotificationContext";
 import { formatCurrency } from "../../utils/exportUtils";
+import { PageHeader } from "../../components/ui/PageHeader";
 import "./Dashboard.css";
 
 const MESES_PT: string[] = [
@@ -344,22 +345,21 @@ const Dashboard: React.FC = () => {
   return (
     <Layout>
       <div className="dashboard">
-        <div className="dashboard-header">
-          <div>
-            <h1 className="dashboard-title">Dashboard</h1>
-            <p className="dashboard-subtitle">
-              Resumo diário do sistema de gestão RH
-            </p>
-          </div>
-          <div className="dashboard-date">
-            {new Date().toLocaleDateString("pt-BR", {
-              weekday: "long",
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}
-          </div>
-        </div>
+        <PageHeader
+          badge="Visão geral"
+          title="Painel principal"
+          subtitle="Resumo do dia com alertas, indicadores e atalhos para as áreas do sistema."
+          actions={
+            <div className="dashboard-date">
+              {new Date().toLocaleDateString("pt-BR", {
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })}
+            </div>
+          }
+        />
 
         <div className="stats-grid">
           <div

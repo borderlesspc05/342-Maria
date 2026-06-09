@@ -28,17 +28,13 @@ import {
   validatePositiveNumber,
   validateRequiredString,
 } from "./securityService";
+import { isFirebaseConfigured } from "../utils/firebaseEnv";
 const COLLECTION_NAME = "transacoes_financeiras";
 const LOCAL_STORAGE_KEY = "financeiro_transacoes_local";
 
 function getScopedLocalKey(): string {
   const uid = auth.currentUser?.uid ?? "anon";
   return `${LOCAL_STORAGE_KEY}:${uid}`;
-}
-
-function isFirebaseConfigured(): boolean {
-  const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
-  return typeof projectId === "string" && projectId.trim().length > 0;
 }
 
 function generateLocalId(): string {

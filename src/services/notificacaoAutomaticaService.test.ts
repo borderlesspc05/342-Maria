@@ -15,6 +15,7 @@ const mockDeps = vi.hoisted(() => ({
   },
   documentacoesService: {
     list: vi.fn(),
+    marcarAlertaEnviado: vi.fn().mockResolvedValue(undefined),
   },
   boletimMedicaoService: {
     getAll: vi.fn(),

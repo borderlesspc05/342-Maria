@@ -15,6 +15,7 @@ import {
 import { auth, db } from "../lib/firebaseconfig";
 import type { Colaborador } from "../types/premioProdutividade";
 import { assertRole, validateRequiredString } from "./securityService";
+import { isFirebaseConfigured } from "../utils/firebaseEnv";
 
 const LOCAL_STORAGE_KEY = "colaboradores_local";
 const CREATE_TIMEOUT_MS = 3000;
@@ -31,11 +32,6 @@ function getScopedLocalKey(): string {
 
 function getColaboradoresCollection() {
   return collection(db, "colaboradores");
-}
-
-function isFirebaseConfigured(): boolean {
-  const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
-  return typeof projectId === "string" && projectId.trim().length > 0;
 }
 
 function mapSnapshotToColaborador(
