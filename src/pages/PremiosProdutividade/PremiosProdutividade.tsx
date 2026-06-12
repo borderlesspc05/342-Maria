@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { renderModalPortal } from "../../utils/renderModalPortal";
 import { Layout } from "../../components/Layout";
 import {
   HiPlus,
@@ -772,7 +773,7 @@ const PremioModal: React.FC<PremioModalProps> = ({
     }
   };
 
-  return (
+  return renderModalPortal(
     <div className="premios-modal-overlay" onClick={onClose}>
       <div className="premios-modal" onClick={(e) => e.stopPropagation()}>
         <div className="premios-modal-header">

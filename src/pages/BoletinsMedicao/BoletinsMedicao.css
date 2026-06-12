@@ -395,6 +395,16 @@
   color: #dc2626;
 }
 
+.btn-icon-success {
+  background: #d1fae5;
+  color: #059669;
+}
+
+.btn-icon-success:hover {
+  background: #10b981;
+  color: white;
+}
+
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -406,17 +416,20 @@
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  padding: 20px;
+  padding: 48px 24px 24px;
   backdrop-filter: blur(4px);
+  overflow-y: auto;
+  box-sizing: border-box;
 }
 
 .modal-content {
   background: white;
   border-radius: 16px;
   width: 100%;
-  max-width: min(960px, calc(100vw - 40px));
-  max-height: 90vh;
+  max-width: min(960px, calc(100vw - 48px));
+  max-height: calc(100vh - 72px);
   overflow-y: auto;
+  margin: auto;
   overflow-x: hidden;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   animation: modalSlideIn 0.3s ease-out;

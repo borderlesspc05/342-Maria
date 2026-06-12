@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { renderModalPortal } from "../../utils/renderModalPortal";
 import { Layout } from "../../components/Layout";
 import {
   HiPlus,
@@ -126,6 +127,18 @@ const BoletinsMedicao: React.FC = () => {
         console.error("Erro ao excluir boletim:", error);
         showToast("Erro ao excluir boletim", "error");
       }
+    }
+  };
+
+  const handleMarcarEmitido = async (id: string) => {
+    try {
+      await boletimMedicaoService.updateStatus(id, "Emitido");
+      showToast("Boletim marcado como emitido!");
+      loadBoletins();
+      loadStats();
+    } catch (error) {
+      console.error("Erro ao atualizar status do boletim:", error);
+      showToast("Não foi possível atualizar o status.", "error");
     }
   };
 
@@ -445,6 +458,15 @@ const BoletinsMedicao: React.FC = () => {
                         >
                           <HiPencil />
                         </button>
+                        {boletim.status !== "Emitido" && (
+                          <button
+                            className="btn-icon btn-icon-success"
+                            onClick={() => handleMarcarEmitido(boletim.id)}
+                            title="Marcar como emitido"
+                          >
+                            <HiCheckCircle />
+                          </button>
+                        )}
                         <button
                           className="btn-icon btn-icon-danger"
                           onClick={() => handleDelete(boletim.id)}
@@ -622,8 +644,9 @@ const BoletimModal: React.FC<BoletimModalProps> = ({
     }
   };
 
-  return (
-    <div className="modal-overlay" onClick={onClose}>
+  return renderModalPortal(
+    <div className="boletins-medicao">
+      <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>{boletim ? "Editar Boletim" : "Novo Boletim de Medição"}</h2>
@@ -894,6 +917,7 @@ const BoletimModal: React.FC<BoletimModalProps> = ({
             </button>
           </div>
         </form>
+      </div>
       </div>
     </div>
   );

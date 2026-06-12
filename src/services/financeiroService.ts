@@ -85,16 +85,6 @@ const timestampToDate = (timestamp: Timestamp): Date => {
   return timestamp.toDate();
 };
 
-// Função para gerar ID temporário
-const generateTempId = () => {
-  if (typeof crypto !== "undefined" && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-  return `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-};
-
-
-
 export const financeiroService = {
   async list(filters: TransacaoFilters = {}): Promise<Transacao[]> {
     await assertRole(["admin"], "listar transações financeiras");

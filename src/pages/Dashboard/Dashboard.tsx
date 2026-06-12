@@ -16,9 +16,9 @@ import {
   HiCalendar,
   HiChartBar,
   HiBell,
-  HiLink,
 } from "react-icons/hi";
 import { paths } from "../../routes/paths";
+import { usePermissions } from "../../hooks/usePermissions";
 import { colaboradorService } from "../../services/colaboradorService";
 import { documentacoesService } from "../../services/documentacoesService";
 import { boletimMedicaoService } from "../../services/boletimMedicaoService";
@@ -68,6 +68,7 @@ const initialStats: DashboardStats = {
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
+  const { isColaborador, canAccess } = usePermissions();
   const { notificacoes, naoLidas, marcarComoLida, deletar, loading: notifLoading } = useNotificationContext();
   const [stats, setStats] = useState<DashboardStats>(initialStats);
   const [statsLoading, setStatsLoading] = useState(true);
@@ -81,18 +82,46 @@ const Dashboard: React.FC = () => {
       const anoAtual = now.getFullYear();
       const hoje = now.toISOString().split("T")[0];
 
-      const [
-        colaboradores,
-        documentos,
-        boletins,
-        premios,
-        lancamentos,
-      ] = await Promise.all([
+      const lancamentos = await cadernoVirtualService.list().catch(() => []);
+
+      const lancamentosHoje = lancamentos.filter((l) => {
+        const lancDate =
+          l.dataLancamento instanceof Date
+            ? l.dataLancamento
+            : new Date(l.dataLancamento);
+        return lancDate.toISOString().split("T")[0] === hoje;
+      }).length;
+
+      if (isColaborador) {
+        setStats({ ...initialStats, lancamentosHoje });
+
+        const activities: RecentActivity[] = lancamentos
+          .slice(0, 8)
+          .map((l) => {
+            const lancTime =
+              l.dataLancamento instanceof Date
+                ? l.dataLancamento
+                : new Date(l.dataLancamento);
+            return {
+              id: `lanc-${l.id}`,
+              type: "lancamento" as const,
+              title: "Lançamento no Caderno Virtual",
+              description: `${l.tipoMovimentacao}: ${l.colaboradorNome} - ${formatCurrency(l.valor)}`,
+              time: lancTime,
+              icon: <HiClipboardList />,
+              color: "#3b82f6",
+            };
+          });
+
+        setRecentActivities(activities);
+        return;
+      }
+
+      const [colaboradores, documentos, boletins, premios] = await Promise.all([
         colaboradorService.list(),
         documentacoesService.list(),
         boletimMedicaoService.getAll({ mes: mesAtual, ano: anoAtual }),
         premioProdutividadeService.list(),
-        cadernoVirtualService.list().catch(() => []),
       ]);
 
       // Documentos pendentes e vencendo
@@ -103,14 +132,6 @@ const Dashboard: React.FC = () => {
       const documentosVencendo = documentos.filter(
         (d) => d.status === "Vencendo"
       ).length;
-
-      // Lançamentos de hoje
-      const lancamentosHoje = lancamentos.filter((l) => {
-        const lancDate = l.dataLancamento instanceof Date 
-          ? l.dataLancamento 
-          : new Date(l.dataLancamento);
-        return lancDate.toISOString().split("T")[0] === hoje;
-      }).length;
 
       // Valor total de boletins emitidos no mês
       const valorBoletinsMes = boletins
@@ -207,7 +228,7 @@ const Dashboard: React.FC = () => {
     } finally {
       setStatsLoading(false);
     }
-  }, []);
+  }, [isColaborador]);
 
   useEffect(() => {
     loadStats();
@@ -302,8 +323,7 @@ const Dashboard: React.FC = () => {
       handleMarkAsRead(notification.id);
     }
     
-    // Navegar se tiver link
-    if (notification.link) {
+    if (notification.link && canAccess(notification.link)) {
       navigate(notification.link);
     }
   };
@@ -348,7 +368,11 @@ const Dashboard: React.FC = () => {
         <PageHeader
           badge="Visão geral"
           title="Painel principal"
-          subtitle="Resumo do dia com alertas, indicadores e atalhos para as áreas do sistema."
+          subtitle={
+            isColaborador
+              ? "Seus lançamentos, notificações e atalhos do dia a dia."
+              : "Resumo do dia com alertas, indicadores e atalhos para as áreas do sistema."
+          }
           actions={
             <div className="dashboard-date">
               {new Date().toLocaleDateString("pt-BR", {
@@ -362,181 +386,197 @@ const Dashboard: React.FC = () => {
         />
 
         <div className="stats-grid">
-          <div
-            className="stat-card stat-card-clickable"
-            onClick={() => navigate(paths.cadernoVirtual)}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => e.key === "Enter" && navigate(paths.cadernoVirtual)}
-            aria-label="Ver caderno virtual"
-          >
-            <div className="stat-icon stat-icon-blue">
-              <HiClipboardList />
+          {canAccess(paths.cadernoVirtual) && (
+            <div
+              className="stat-card stat-card-clickable"
+              onClick={() => navigate(paths.cadernoVirtual)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === "Enter" && navigate(paths.cadernoVirtual)}
+              aria-label="Ver caderno virtual"
+            >
+              <div className="stat-icon stat-icon-blue">
+                <HiClipboardList />
+              </div>
+              <div className="stat-content">
+                <h3 className="stat-label">Lançamentos Hoje</h3>
+                <p className="stat-value">
+                  {statsLoading ? "—" : stats.lancamentosHoje}
+                </p>
+                <span className="stat-ver-mais">
+                  Ver caderno virtual <HiArrowRight />
+                </span>
+              </div>
             </div>
-            <div className="stat-content">
-              <h3 className="stat-label">Lançamentos Hoje</h3>
-              <p className="stat-value">
-                {statsLoading ? "—" : stats.lancamentosHoje}
-              </p>
-              <span className="stat-ver-mais">
-                Ver caderno virtual <HiArrowRight />
-              </span>
-            </div>
-          </div>
+          )}
 
-          <div
-            className="stat-card stat-card-clickable"
-            onClick={() => navigate(paths.documentacoes)}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => e.key === "Enter" && navigate(paths.documentacoes)}
-            aria-label="Ver documentos pendentes"
-          >
-            <div className="stat-icon stat-icon-red">
-              <HiExclamationCircle />
+          {canAccess(paths.documentacoes) && (
+            <div
+              className="stat-card stat-card-clickable"
+              onClick={() => navigate(paths.documentacoes)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === "Enter" && navigate(paths.documentacoes)}
+              aria-label="Ver documentos pendentes"
+            >
+              <div className="stat-icon stat-icon-red">
+                <HiExclamationCircle />
+              </div>
+              <div className="stat-content">
+                <h3 className="stat-label">Documentos Pendentes</h3>
+                <p className="stat-value stat-value-danger">
+                  {statsLoading ? "—" : stats.documentosPendentes}
+                </p>
+                <span className="stat-ver-mais">
+                  Ver documentações <HiArrowRight />
+                </span>
+              </div>
             </div>
-            <div className="stat-content">
-              <h3 className="stat-label">Documentos Pendentes</h3>
-              <p className="stat-value stat-value-danger">
-                {statsLoading ? "—" : stats.documentosPendentes}
-              </p>
-              <span className="stat-ver-mais">
-                Ver documentações <HiArrowRight />
-              </span>
-            </div>
-          </div>
+          )}
 
-          <div
-            className="stat-card stat-card-clickable"
-            onClick={() => navigate(paths.documentacoes)}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => e.key === "Enter" && navigate(paths.documentacoes)}
-            aria-label="Ver documentos vencendo"
-          >
-            <div className="stat-icon stat-icon-orange">
-              <HiClock />
+          {canAccess(paths.documentacoes) && (
+            <div
+              className="stat-card stat-card-clickable"
+              onClick={() => navigate(paths.documentacoes)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === "Enter" && navigate(paths.documentacoes)}
+              aria-label="Ver documentos vencendo"
+            >
+              <div className="stat-icon stat-icon-orange">
+                <HiClock />
+              </div>
+              <div className="stat-content">
+                <h3 className="stat-label">Documentos Vencendo</h3>
+                <p className="stat-value stat-value-warning">
+                  {statsLoading ? "—" : stats.documentosVencendo}
+                </p>
+                <span className="stat-ver-mais">
+                  Ver documentações <HiArrowRight />
+                </span>
+              </div>
             </div>
-            <div className="stat-content">
-              <h3 className="stat-label">Documentos Vencendo</h3>
-              <p className="stat-value stat-value-warning">
-                {statsLoading ? "—" : stats.documentosVencendo}
-              </p>
-              <span className="stat-ver-mais">
-                Ver documentações <HiArrowRight />
-              </span>
-            </div>
-          </div>
+          )}
 
-          <div
-            className="stat-card stat-card-clickable"
-            onClick={() => navigate(paths.boletinsMedicao)}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => e.key === "Enter" && navigate(paths.boletinsMedicao)}
-            aria-label="Ver boletins"
-          >
-            <div className="stat-icon stat-icon-green">
-              <HiChartBar />
+          {canAccess(paths.boletinsMedicao) && (
+            <div
+              className="stat-card stat-card-clickable"
+              onClick={() => navigate(paths.boletinsMedicao)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === "Enter" && navigate(paths.boletinsMedicao)}
+              aria-label="Ver boletins"
+            >
+              <div className="stat-icon stat-icon-green">
+                <HiChartBar />
+              </div>
+              <div className="stat-content">
+                <h3 className="stat-label">Boletins do Mês</h3>
+                <p className="stat-value stat-value-success">
+                  {statsLoading ? "—" : stats.boletinsMes}
+                </p>
+                <span className="stat-ver-mais">
+                  Ver boletins <HiArrowRight />
+                </span>
+              </div>
             </div>
-            <div className="stat-content">
-              <h3 className="stat-label">Boletins do Mês</h3>
-              <p className="stat-value stat-value-success">
-                {statsLoading ? "—" : stats.boletinsMes}
-              </p>
-              <span className="stat-ver-mais">
-                Ver boletins <HiArrowRight />
-              </span>
-            </div>
-          </div>
+          )}
 
-          <div
-            className="stat-card stat-card-clickable"
-            onClick={() => navigate(paths.boletinsMedicao)}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => e.key === "Enter" && navigate(paths.boletinsMedicao)}
-            aria-label="Ver valor de boletins"
-          >
-            <div className="stat-icon stat-icon-teal">
-              <HiCurrencyDollar />
+          {canAccess(paths.boletinsMedicao) && (
+            <div
+              className="stat-card stat-card-clickable"
+              onClick={() => navigate(paths.boletinsMedicao)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === "Enter" && navigate(paths.boletinsMedicao)}
+              aria-label="Ver valor de boletins"
+            >
+              <div className="stat-icon stat-icon-teal">
+                <HiCurrencyDollar />
+              </div>
+              <div className="stat-content">
+                <h3 className="stat-label">Faturamento - Boletins</h3>
+                <p className="stat-value stat-value-teal">
+                  {statsLoading ? "—" : formatCurrency(stats.valorBoletinsMes)}
+                </p>
+                <span className="stat-ver-mais">
+                  Ver boletins <HiArrowRight />
+                </span>
+              </div>
             </div>
-            <div className="stat-content">
-              <h3 className="stat-label">Faturamento - Boletins</h3>
-              <p className="stat-value stat-value-teal">
-                {statsLoading ? "—" : formatCurrency(stats.valorBoletinsMes)}
-              </p>
-              <span className="stat-ver-mais">
-                Ver boletins <HiArrowRight />
-              </span>
-            </div>
-          </div>
+          )}
 
-          <div
-            className="stat-card stat-card-clickable"
-            onClick={() => navigate(paths.premiosProdutividade)}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => e.key === "Enter" && navigate(paths.premiosProdutividade)}
-            aria-label="Ver prêmios"
-          >
-            <div className="stat-icon stat-icon-purple">
-              <HiTrendingUp />
+          {canAccess(paths.premiosProdutividade) && (
+            <div
+              className="stat-card stat-card-clickable"
+              onClick={() => navigate(paths.premiosProdutividade)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === "Enter" && navigate(paths.premiosProdutividade)}
+              aria-label="Ver prêmios"
+            >
+              <div className="stat-icon stat-icon-purple">
+                <HiTrendingUp />
+              </div>
+              <div className="stat-content">
+                <h3 className="stat-label">Prêmios do Mês</h3>
+                <p className="stat-value stat-value-purple">
+                  {statsLoading ? "—" : formatCurrency(stats.valorPremiosMes)}
+                </p>
+                <span className="stat-ver-mais">
+                  Ver prêmios <HiArrowRight />
+                </span>
+              </div>
             </div>
-            <div className="stat-content">
-              <h3 className="stat-label">Prêmios do Mês</h3>
-              <p className="stat-value stat-value-purple">
-                {statsLoading ? "—" : formatCurrency(stats.valorPremiosMes)}
-              </p>
-              <span className="stat-ver-mais">
-                Ver prêmios <HiArrowRight />
-              </span>
-            </div>
-          </div>
+          )}
 
-          <div
-            className="stat-card stat-card-clickable"
-            onClick={() => navigate(paths.colaboradores)}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => e.key === "Enter" && navigate(paths.colaboradores)}
-            aria-label="Ver colaboradores"
-          >
-            <div className="stat-icon stat-icon-indigo">
-              <HiUsers />
+          {canAccess(paths.colaboradores) && (
+            <div
+              className="stat-card stat-card-clickable"
+              onClick={() => navigate(paths.colaboradores)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === "Enter" && navigate(paths.colaboradores)}
+              aria-label="Ver colaboradores"
+            >
+              <div className="stat-icon stat-icon-indigo">
+                <HiUsers />
+              </div>
+              <div className="stat-content">
+                <h3 className="stat-label">Total de Colaboradores</h3>
+                <p className="stat-value">
+                  {statsLoading ? "—" : stats.colaboradores}
+                </p>
+                <span className="stat-ver-mais">
+                  Ver colaboradores <HiArrowRight />
+                </span>
+              </div>
             </div>
-            <div className="stat-content">
-              <h3 className="stat-label">Total de Colaboradores</h3>
-              <p className="stat-value">
-                {statsLoading ? "—" : stats.colaboradores}
-              </p>
-              <span className="stat-ver-mais">
-                Ver colaboradores <HiArrowRight />
-              </span>
-            </div>
-          </div>
+          )}
 
-          <div
-            className="stat-card stat-card-clickable"
-            onClick={() => navigate(paths.cadernoVirtual)}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => e.key === "Enter" && navigate(paths.cadernoVirtual)}
-            aria-label="Ver resumo mensal"
-          >
-            <div className="stat-icon stat-icon-pink">
-              <HiCalendar />
+          {canAccess(paths.premiosProdutividade) && (
+            <div
+              className="stat-card stat-card-clickable"
+              onClick={() => navigate(paths.premiosProdutividade)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === "Enter" && navigate(paths.premiosProdutividade)}
+              aria-label="Ver prêmios ativos"
+            >
+              <div className="stat-icon stat-icon-pink">
+                <HiCalendar />
+              </div>
+              <div className="stat-content">
+                <h3 className="stat-label">Prêmios Ativos</h3>
+                <p className="stat-value">
+                  {statsLoading ? "—" : stats.premiosAtivos}
+                </p>
+                <span className="stat-ver-mais">
+                  Ver prêmios <HiArrowRight />
+                </span>
+              </div>
             </div>
-            <div className="stat-content">
-              <h3 className="stat-label">Prêmios Ativos</h3>
-              <p className="stat-value">
-                {statsLoading ? "—" : stats.premiosAtivos}
-              </p>
-              <span className="stat-ver-mais">
-                Ver prêmios <HiArrowRight />
-              </span>
-            </div>
-          </div>
+          )}
         </div>
 
         {/* Widget de Atividades Recentes */}
@@ -547,7 +587,9 @@ const Dashboard: React.FC = () => {
               Atividades Recentes
             </h2>
             <span className="section-subtitle">
-              Últimas movimentações do sistema
+              {isColaborador
+                ? "Seus lançamentos recentes"
+                : "Últimas movimentações do sistema"}
             </span>
           </div>
 
@@ -619,10 +661,20 @@ const Dashboard: React.FC = () => {
                     key={notification.id}
                     className={`notification-card ${notification.type} ${
                       !notification.read ? "unread" : ""
-                    } ${notification.link ? "clickable" : ""}`}
-                    onClick={() => notification.link && handleNotificationClick(notification)}
-                    role={notification.link ? "button" : undefined}
-                    tabIndex={notification.link ? 0 : undefined}
+                    } ${notification.link && canAccess(notification.link) ? "clickable" : ""}`}
+                    onClick={() =>
+                      notification.link &&
+                      canAccess(notification.link) &&
+                      handleNotificationClick(notification)
+                    }
+                    role={
+                      notification.link && canAccess(notification.link)
+                        ? "button"
+                        : undefined
+                    }
+                    tabIndex={
+                      notification.link && canAccess(notification.link) ? 0 : undefined
+                    }
                   >
                     <div className="notification-icon">
                       {getNotificationIcon(notification.type)}
@@ -698,10 +750,16 @@ const Dashboard: React.FC = () => {
                     key={alert.id}
                     className={`alert-card ${alert.type} ${
                       !alert.read ? "unread" : ""
-                    } ${alert.link ? "clickable" : ""}`}
-                    onClick={() => alert.link && handleNotificationClick(alert)}
-                    role={alert.link ? "button" : undefined}
-                    tabIndex={alert.link ? 0 : undefined}
+                    } ${alert.link && canAccess(alert.link) ? "clickable" : ""}`}
+                    onClick={() =>
+                      alert.link &&
+                      canAccess(alert.link) &&
+                      handleNotificationClick(alert)
+                    }
+                    role={
+                      alert.link && canAccess(alert.link) ? "button" : undefined
+                    }
+                    tabIndex={alert.link && canAccess(alert.link) ? 0 : undefined}
                   >
                     <div className="alert-icon">
                       {getNotificationIcon(alert.type)}
@@ -732,50 +790,97 @@ const Dashboard: React.FC = () => {
         <div className="quick-actions">
           <h2 className="section-title">Ações Rápidas</h2>
           <div className="actions-grid">
-            <button
-              type="button"
-              className="action-button"
-              onClick={() => navigate(paths.documentacoes)}
-              aria-label="Ver Documentações"
-            >
-              <span className="action-icon">
-                <HiFolder />
-              </span>
-              <span>Ver Documentações</span>
-            </button>
-            <button
-              type="button"
-              className="action-button"
-              onClick={() => navigate(paths.premiosProdutividade)}
-              aria-label="Ver Prêmios"
-            >
-              <span className="action-icon">
-                <HiTrendingUp />
-              </span>
-              <span>Ver Prêmios</span>
-            </button>
-            <button
-              type="button"
-              className="action-button"
-              onClick={() => navigate(paths.boletinsMedicao)}
-              aria-label="Ver Boletins"
-            >
-              <span className="action-icon">
-                <HiClipboardList />
-              </span>
-              <span>Ver Boletins</span>
-            </button>
-            <button
-              type="button"
-              className="action-button"
-              onClick={() => navigate(paths.documentacoes)}
-              aria-label="Gerenciar Integrações"
-            >
-              <span className="action-icon">
-                <HiLink />
-              </span>
-              <span>Gerenciar Integrações</span>
-            </button>
+            {canAccess(paths.cadernoVirtual) && (
+              <button
+                type="button"
+                className="action-button"
+                onClick={() => navigate(paths.cadernoVirtual)}
+                aria-label="Caderno Virtual"
+              >
+                <span className="action-icon">
+                  <HiClipboardList />
+                </span>
+                <span>Caderno Virtual</span>
+              </button>
+            )}
+            {canAccess(paths.notificacoes) && (
+              <button
+                type="button"
+                className="action-button"
+                onClick={() => navigate(paths.notificacoes)}
+                aria-label="Notificações"
+              >
+                <span className="action-icon">
+                  <HiBell />
+                </span>
+                <span>Notificações</span>
+              </button>
+            )}
+            {canAccess(paths.perfil) && (
+              <button
+                type="button"
+                className="action-button"
+                onClick={() => navigate(paths.perfil)}
+                aria-label="Meu Perfil"
+              >
+                <span className="action-icon">
+                  <HiUsers />
+                </span>
+                <span>Meu Perfil</span>
+              </button>
+            )}
+            {canAccess(paths.documentacoes) && (
+              <button
+                type="button"
+                className="action-button"
+                onClick={() => navigate(paths.documentacoes)}
+                aria-label="Ver Documentações"
+              >
+                <span className="action-icon">
+                  <HiFolder />
+                </span>
+                <span>Ver Documentações</span>
+              </button>
+            )}
+            {canAccess(paths.premiosProdutividade) && (
+              <button
+                type="button"
+                className="action-button"
+                onClick={() => navigate(paths.premiosProdutividade)}
+                aria-label="Ver Prêmios"
+              >
+                <span className="action-icon">
+                  <HiTrendingUp />
+                </span>
+                <span>Ver Prêmios</span>
+              </button>
+            )}
+            {canAccess(paths.boletinsMedicao) && (
+              <button
+                type="button"
+                className="action-button"
+                onClick={() => navigate(paths.boletinsMedicao)}
+                aria-label="Ver Boletins"
+              >
+                <span className="action-icon">
+                  <HiDocumentText />
+                </span>
+                <span>Ver Boletins</span>
+              </button>
+            )}
+            {canAccess(paths.documentacoes) && (
+              <button
+                type="button"
+                className="action-button"
+                onClick={() => navigate(paths.documentacoes)}
+                aria-label="Ver Documentações"
+              >
+                <span className="action-icon">
+                  <HiFolder />
+                </span>
+                <span>Ver Documentações</span>
+              </button>
+            )}
           </div>
         </div>
       </div>

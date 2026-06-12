@@ -1,73 +1,72 @@
-# React + TypeScript + Vite
+# Sistema de Gestão RH — 342 Maria
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Aplicação web (React + TypeScript + Vite) com backend Firebase para gestão de RH: colaboradores, caderno virtual, prêmios, boletins, documentações e financeiro.
 
-Currently, two official plugins are available:
+## Requisitos
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- Node.js 20+
+- Conta Firebase (projeto configurado)
 
-## React Compiler
+## Instalação
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+cd functions && npm install && cd ..
+cp .env.example .env
+# Preencha as variáveis VITE_FIREBASE_* no .env
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Desenvolvimento
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+```bash
+npm run dev
+```
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Acesse http://localhost:5173
+
+## Build de produção
+
+```bash
+npm run build
+npm run preview
+```
+
+## Deploy Firebase
+
+```bash
+npm run firebase:deploy:rules    # regras Firestore (obrigatório para gestor criar colaborador)
+npm run firebase:deploy:storage  # regras Storage
+npm run firebase:deploy:functions # Cloud Functions (opcional; há fallback REST)
+npm run firebase:deploy          # deploy completo
+```
+
+## Papéis de acesso (MVP)
+
+| Tela | Admin | Gestor | Colaborador |
+|------|:-----:|:------:|:-----------:|
+| Dashboard, Notificações, Caderno Virtual, Perfil | ✓ | ✓ | ✓ |
+| Colaboradores, Prêmios, Boletins, Documentações, Relatórios, Docs. Financeiros | ✓ | ✓ | |
+| Administração, Financeiro, Backup, Configurações | ✓ | | |
+
+## Contas de teste (ambiente dev)
+
+Crie com `node scripts/create-test-users.mjs` (requer service account ou login Firebase CLI).
+
+| Papel | E-mail | Senha |
+|-------|--------|-------|
+| Admin | admin@gmail.com | 123456 |
+| Gestor | gestor.maria@borderless.dev | Gestor@2026 |
+| Colaborador | colaborador.maria@borderless.dev | Colab@2026 |
+
+## Setup inicial
+
+- Em **dev**, acesse `/setup-admin` para criar o primeiro admin.
+- Em **produção**, defina `VITE_ALLOW_SETUP=false` (padrão) para bloquear essa rota.
+
+## Scripts úteis
+
+```bash
+npm run lint
+npm test
+node scripts/create-test-users.mjs
 ```

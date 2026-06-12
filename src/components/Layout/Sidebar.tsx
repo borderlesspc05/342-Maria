@@ -15,6 +15,7 @@ import {
   HiCloudUpload,
 } from "react-icons/hi";
 import { paths } from "../../routes/paths";
+import { canAccessRoute } from "../../routes/routePermissions";
 import "./Sidebar.css";
 
 interface SidebarProps {
@@ -27,7 +28,6 @@ type MenuItem = {
   path: string;
   icon: React.ComponentType<{ className?: string }>;
   label: string;
-  roles?: Array<"admin" | "gestor" | "colaborador">;
 };
 
 type MenuSection = {
@@ -41,62 +41,31 @@ const MENU_SECTIONS: MenuSection[] = [
     id: "inicio",
     title: "Início",
     items: [
-      { path: "/dashboard", icon: HiHome, label: "Painel" },
-      { path: "/notificacoes", icon: HiBell, label: "Notificações" },
+      { path: paths.dashboard, icon: HiHome, label: "Painel" },
+      { path: paths.notificacoes, icon: HiBell, label: "Notificações" },
     ],
   },
   {
     id: "equipe",
     title: "Equipe",
     items: [
-      {
-        path: "/administracao",
-        icon: HiShieldCheck,
-        label: "Administração",
-        roles: ["admin"],
-      },
-      {
-        path: "/colaboradores",
-        icon: HiUserGroup,
-        label: "Colaboradores",
-        roles: ["admin", "gestor"],
-      },
+      { path: paths.administracao, icon: HiShieldCheck, label: "Administração" },
+      { path: paths.colaboradores, icon: HiUserGroup, label: "Colaboradores" },
     ],
   },
   {
     id: "operacoes",
     title: "Operações",
     items: [
-      {
-        path: "/premios-produtividade",
-        icon: HiTrendingUp,
-        label: "Prêmios",
-        roles: ["admin", "gestor"],
-      },
-      {
-        path: "/boletins-medicao",
-        icon: HiDocumentText,
-        label: "Boletins",
-        roles: ["admin", "gestor"],
-      },
-      {
-        path: "/documentacoes",
-        icon: HiFolder,
-        label: "Documentações",
-        roles: ["admin", "gestor"],
-      },
-      { path: "/caderno-virtual", icon: HiBookOpen, label: "Caderno Virtual" },
-      {
-        path: "/financeiro",
-        icon: HiCurrencyDollar,
-        label: "Financeiro",
-        roles: ["admin"],
-      },
+      { path: paths.premiosProdutividade, icon: HiTrendingUp, label: "Prêmios" },
+      { path: paths.boletinsMedicao, icon: HiDocumentText, label: "Boletins" },
+      { path: paths.documentacoes, icon: HiFolder, label: "Documentações" },
+      { path: paths.cadernoVirtual, icon: HiBookOpen, label: "Caderno Virtual" },
+      { path: paths.financeiro, icon: HiCurrencyDollar, label: "Financeiro" },
       {
         path: paths.documentosFinanceiros,
         icon: HiDocumentText,
         label: "Docs. Financeiros",
-        roles: ["admin", "gestor"],
       },
     ],
   },
@@ -104,18 +73,8 @@ const MENU_SECTIONS: MenuSection[] = [
     id: "sistema",
     title: "Sistema",
     items: [
-      {
-        path: "/relatorios",
-        icon: HiChartBar,
-        label: "Relatórios",
-        roles: ["admin", "gestor"],
-      },
-      {
-        path: paths.backup,
-        icon: HiCloudUpload,
-        label: "Backup",
-        roles: ["admin"],
-      },
+      { path: paths.relatorios, icon: HiChartBar, label: "Relatórios" },
+      { path: paths.backup, icon: HiCloudUpload, label: "Backup" },
     ],
   },
 ];
@@ -123,11 +82,7 @@ const MENU_SECTIONS: MenuSection[] = [
 const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, onNavigate }) => {
   const { user } = useAuth();
 
-  const canSee = (item: MenuItem) => {
-    if (!item.roles?.length) return true;
-    if (!user?.role) return false;
-    return item.roles.includes(user.role);
-  };
+  const canSee = (item: MenuItem) => canAccessRoute(user?.role, item.path);
 
   return (
     <aside

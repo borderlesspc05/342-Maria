@@ -61,9 +61,11 @@ service cloud.firestore {
     }
 
     match /users/{uid} {
-      allow read: if isOwner(uid) || isAdmin();
+      allow read: if isOwner(uid) || isAdmin()
+        || (isGestor() && resource.data.role == "colaborador");
       allow create: if (isOwner(uid) && isValidUserCreateData(uid) && request.resource.data.role == "colaborador")
-        || (isAdmin() && isValidUserCreateData(uid));
+        || (isAdmin() && isValidUserCreateData(uid))
+        || (isGestor() && isValidUserCreateData(uid) && request.resource.data.role == "colaborador");
       allow update: if (isOwner(uid) && isValidUserSelfUpdate())
         || isAdmin();
       allow delete: if isAdmin();

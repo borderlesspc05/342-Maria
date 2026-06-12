@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { renderModalPortal } from "../../utils/renderModalPortal";
 import { Layout } from "../../components/Layout";
 import {
   HiPlus,
@@ -185,6 +186,25 @@ const Documentacoes: React.FC = () => {
     } catch (error) {
       console.error("Erro ao excluir documento:", error);
       alert("Não foi possível excluir o documento.");
+    }
+  };
+
+  const handleRenovarDocumento = async (id: string) => {
+    if (
+      !confirm(
+        "Renovar este documento por mais 12 meses a partir de hoje?"
+      )
+    ) {
+      return;
+    }
+    try {
+      await documentacoesService.renovarDocumento(id);
+      showToast("Documento renovado com sucesso!");
+      loadDocumentos();
+      loadStats();
+    } catch (error) {
+      console.error("Erro ao renovar documento:", error);
+      showToast("Não foi possível renovar o documento.", "error");
     }
   };
 
@@ -536,6 +556,21 @@ const Documentacoes: React.FC = () => {
                             >
                               <HiPencil />
                             </button>
+                            {(doc.status === "Vencido" ||
+                              doc.status === "Vencendo" ||
+                              doc.status === "Pendente") && (
+                              <button
+                                className="documentacoes-action-btn success"
+                                onClick={() => handleRenovarDocumento(doc.id)}
+                                title={
+                                  doc.status === "Pendente"
+                                    ? "Marcar como válido"
+                                    : "Renovar documento"
+                                }
+                              >
+                                <HiCheckCircle />
+                              </button>
+                            )}
                             <button
                               className="documentacoes-action-btn delete"
                               onClick={() => handleDeleteDocumento(doc.id)}
@@ -745,7 +780,7 @@ const DocumentoModal: React.FC<DocumentoModalProps> = ({
     onSave(dataToSave);
   };
 
-  return (
+  return renderModalPortal(
     <div className="documentacoes-modal-overlay" onClick={onClose}>
       <div
         className="documentacoes-modal-content"
@@ -940,7 +975,7 @@ const TreinamentoModal: React.FC<TreinamentoModalProps> = ({
     onSave(formData);
   };
 
-  return (
+  return renderModalPortal(
     <div className="documentacoes-modal-overlay" onClick={onClose}>
       <div
         className="documentacoes-modal-content"

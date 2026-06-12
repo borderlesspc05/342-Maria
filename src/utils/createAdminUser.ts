@@ -67,7 +67,6 @@ export async function createAdminUser(): Promise<void> {
 
     console.log("✅ Usuário admin criado com sucesso!");
     console.log("📧 Email:", adminEmail);
-    console.log("🔑 Senha:", adminPassword);
     console.log("👤 Role: admin");
   } catch (error: any) {
     if (error.code === "auth/email-already-in-use") {

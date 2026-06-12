@@ -1,4 +1,5 @@
 import { useAuth } from "./useAuth";
+import { canAccessRoute } from "../routes/routePermissions";
 
 /**
  * Hook para verificar permissões do usuário atual
@@ -22,12 +23,15 @@ export function usePermissions() {
    */
   const canAccessAdmin = isAdmin;
 
+  const canAccess = (path: string) => canAccessRoute(user?.role, path);
+
   return {
     isAdmin,
     isGestor,
     isColaborador,
     canEdit,
     canAccessAdmin,
+    canAccess,
     userRole: user?.role,
   };
 }

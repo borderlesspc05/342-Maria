@@ -14,6 +14,7 @@ import {
   HiChartBar,
 } from "react-icons/hi";
 import { useAuth } from "../../hooks/useAuth";
+import { usePermissions } from "../../hooks/usePermissions";
 import { useNotificationContext } from "../../contexts/NotificationContext";
 import "./Header.css";
 
@@ -24,6 +25,7 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ onMenuClick, collapsed = false }) => {
   const { user, logOut } = useAuth();
+  const { canAccess } = usePermissions();
   const navigate = useNavigate();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -51,7 +53,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, collapsed = false }) => {
   const handleNotificationClick = async (id: string, link?: string) => {
     await marcarComoLida(id);
     setShowNotifications(false);
-    if (link) {
+    if (link && canAccess(link)) {
       navigate(link);
     }
   };
@@ -278,21 +280,23 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, collapsed = false }) => {
                   <li>
                     <button
                       className="menu-item"
-                      onClick={() => navigate("/perfil")}
+                      onClick={() => navigate(paths.perfil)}
                     >
                       <HiUser />
                       <span>Meu Perfil</span>
                     </button>
                   </li>
-                  <li>
-                    <button
-                      className="menu-item"
-                      onClick={() => navigate("/Configuracoes")}
-                    >
-                      <HiCog />
-                      <span>Configurações</span>
-                    </button>
-                  </li>
+                  {canAccess(paths.configuracoes) && (
+                    <li>
+                      <button
+                        className="menu-item"
+                        onClick={() => navigate(paths.configuracoes)}
+                      >
+                        <HiCog />
+                        <span>Configurações</span>
+                      </button>
+                    </li>
+                  )}
                   <li className="menu-divider"></li>
                   <li>
                     <button className="menu-item logout" onClick={handleLogout}>

@@ -466,6 +466,42 @@ export const documentacoesService = {
     await updateDoc(doc(documentosCollection, id), updateData);
   },
 
+  async renovarDocumento(id: string, meses = 12): Promise<void> {
+    await assertRole(["admin", "gestor"], "renovar documentação");
+
+    const novaValidade = new Date();
+    novaValidade.setHours(0, 0, 0, 0);
+    novaValidade.setMonth(novaValidade.getMonth() + meses);
+    const status = calcularStatusDocumento(novaValidade);
+
+    if (id.startsWith("local-")) {
+      const list = getLocalDocumentos();
+      const idx = list.findIndex((d) => d.id === id);
+      if (idx === -1) return;
+      list[idx] = {
+        ...list[idx],
+        dataValidade: novaValidade,
+        status,
+        alertaEnviado: false,
+        atualizadoEm: new Date(),
+      };
+      saveLocalDocumento(list[idx]);
+      return;
+    }
+
+    const snap = await getDoc(doc(documentosCollection, id));
+    if (!snap.exists()) {
+      throw new Error("Documento não encontrado.");
+    }
+
+    await updateDoc(doc(documentosCollection, id), {
+      dataValidade: Timestamp.fromDate(novaValidade),
+      status,
+      alertaEnviado: false,
+      atualizadoEm: Timestamp.now(),
+    });
+  },
+
   async delete(id: string): Promise<void> {
     await assertRole(["admin", "gestor"], "deletar documentação");
     if (id.startsWith("local-")) {

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { renderModalPortal } from "../../utils/renderModalPortal";
 import { Layout } from "../../components/Layout";
 import {
   HiPlus,
@@ -197,6 +198,33 @@ const Financeiro: React.FC = () => {
       );
       handleCloseStatusModal();
       showToast("Status atualizado com sucesso!");
+      loadTransacoes();
+      loadStats();
+    } catch (error) {
+      console.error("Erro ao atualizar status:", error);
+      showToast("Não foi possível atualizar o status.", "error");
+    }
+  };
+
+  const handleQuickStatusChange = async (
+    transacao: Transacao,
+    status: StatusTransacao
+  ) => {
+    if (status === "Pago") {
+      handleOpenStatusModal(transacao);
+      return;
+    }
+    try {
+      await financeiroService.updateStatus(
+        transacao.id,
+        status,
+        user?.uid || ""
+      );
+      showToast(
+        status === "Aprovado"
+          ? "Transação aprovada!"
+          : "Status atualizado com sucesso!"
+      );
       loadTransacoes();
       loadStats();
     } catch (error) {
@@ -544,6 +572,38 @@ const Financeiro: React.FC = () => {
                         >
                           <HiPencil />
                         </button>
+                        {transacao.status === "Pendente" && (
+                          <button
+                            className="financeiro-action-btn success"
+                            onClick={() =>
+                              handleQuickStatusChange(transacao, "Aprovado")
+                            }
+                            title="Aprovar"
+                          >
+                            <HiCheckCircle />
+                          </button>
+                        )}
+                        {transacao.status === "Aprovado" && (
+                          <button
+                            className="financeiro-action-btn success"
+                            onClick={() =>
+                              handleQuickStatusChange(transacao, "Pago")
+                            }
+                            title="Marcar como pago"
+                          >
+                            <HiCurrencyDollar />
+                          </button>
+                        )}
+                        {transacao.status !== "Pago" &&
+                          transacao.status !== "Cancelado" && (
+                            <button
+                              className="financeiro-action-btn status"
+                              onClick={() => handleOpenStatusModal(transacao)}
+                              title="Alterar status"
+                            >
+                              <HiClock />
+                            </button>
+                          )}
                         <button
                           className="financeiro-action-btn delete"
                           onClick={() => handleDeleteTransacao(transacao.id)}
@@ -649,7 +709,7 @@ const TransacaoModal: React.FC<TransacaoModalProps> = ({
     onSave(formData);
   };
 
-  return (
+  return renderModalPortal(
     <div className="financeiro-modal-overlay" onClick={onClose}>
       <div
         className="financeiro-modal-content"
@@ -810,7 +870,7 @@ const StatusModal: React.FC<StatusModalProps> = ({
   onUpdateStatus,
 }) => {
   const [novoStatus, setNovoStatus] = useState<StatusTransacao>(
-    transacao.status
+    transacao.status === "Aprovado" ? "Pago" : transacao.status
   );
   const [formaPagamento, setFormaPagamento] = useState<FormaPagamento | "">(
     transacao.formaPagamento || ""
@@ -829,7 +889,7 @@ const StatusModal: React.FC<StatusModalProps> = ({
     );
   };
 
-  return (
+  return renderModalPortal(
     <div className="financeiro-modal-overlay" onClick={onClose}>
       <div
         className="financeiro-modal-content financeiro-status-modal"

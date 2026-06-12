@@ -16,6 +16,7 @@ export const paths = {
   notificacoes: "/notificacoes",
   documentosFinanceiros: "/documentos-financeiros",
   perfil: "/perfil",
-  configuracoes: "/Configuracoes",
+  configuracoes: "/configuracoes",
+  configuracoesLegacy: "/Configuracoes",
   backup: "/backup",
 };

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createAdminUser } from "../../utils/createAdminUser";
+import { paths } from "../../routes/paths";
 import "./SetupAdmin.css";
 
 const SetupAdmin: React.FC = () => {
@@ -17,13 +18,12 @@ const SetupAdmin: React.FC = () => {
     try {
       await createAdminUser();
       setMessage(
-        "✅ Usuário admin criado com sucesso!\n" +
-        "📧 Email: admin@gmail.com\n" +
-        "🔑 Senha: 123456\n\n" +
-        "Você pode fazer login agora!"
+        "Administrador criado com sucesso. Faça login para continuar."
       );
-    } catch (err: any) {
-      setError(err.message || "Erro ao criar usuário admin");
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error ? err.message : "Erro ao criar usuário admin";
+      setError(msg);
       console.error("Erro:", err);
     } finally {
       setLoading(false);
@@ -33,18 +33,18 @@ const SetupAdmin: React.FC = () => {
   return (
     <div className="setup-container">
       <div className="setup-card">
-        <h1>🔐 Setup - Criar Usuário Admin</h1>
+        <h1>Setup inicial</h1>
         <p className="setup-description">
-          Esta página cria o usuário administrador inicial no sistema.
-          Execute apenas uma vez.
+          Use esta tela apenas na primeira instalação do sistema para criar o
+          administrador principal.
         </p>
 
         <div className="setup-info">
-          <h3>Credenciais que serão criadas:</h3>
+          <h3>Antes de continuar</h3>
           <ul>
-            <li><strong>Email:</strong> admin@gmail.com</li>
-            <li><strong>Senha:</strong> 123456</li>
-            <li><strong>Role:</strong> admin</li>
+            <li>Execute somente uma vez por ambiente.</li>
+            <li>Após criar o admin, faça login normalmente.</li>
+            <li>Em produção, desative esta rota (sem VITE_ALLOW_SETUP).</li>
           </ul>
         </div>
 
@@ -56,7 +56,9 @@ const SetupAdmin: React.FC = () => {
 
         {error && (
           <div className="setup-message error">
-            <pre style={{ whiteSpace: "pre-wrap", fontFamily: "inherit" }}>{error}</pre>
+            <pre style={{ whiteSpace: "pre-wrap", fontFamily: "inherit" }}>
+              {error}
+            </pre>
           </div>
         )}
 
@@ -66,19 +68,15 @@ const SetupAdmin: React.FC = () => {
             disabled={loading}
             className="setup-button"
           >
-            {loading ? "Criando..." : "Criar Usuário Admin"}
+            {loading ? "Criando..." : "Criar administrador"}
           </button>
 
           <button
-            onClick={() => navigate("/login")}
+            onClick={() => navigate(paths.login)}
             className="setup-button secondary"
           >
-            Ir para Login
+            Ir para login
           </button>
-        </div>
-
-        <div className="setup-warning">
-          <p>⚠️ <strong>Atenção:</strong> Esta página deve ser removida em produção!</p>
         </div>
       </div>
     </div>

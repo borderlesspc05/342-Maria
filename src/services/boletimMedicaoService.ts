@@ -18,6 +18,7 @@ import type {
   BoletimMedicaoFormData,
   BoletimFilters,
   BoletimStats,
+  BoletimStatus,
   Anexo,
 } from "../types/boletimMedicao";
 import { uploadAnexos, removeAnexo } from "./anexoService";
@@ -218,6 +219,10 @@ export const boletimMedicaoService = {
       console.error("Erro ao atualizar boletim no Firebase:", error);
       throw new Error("Falha ao atualizar boletim de medição.");
     }
+  },
+
+  async updateStatus(id: string, status: BoletimStatus): Promise<void> {
+    await this.update(id, { status });
   },
 
   async delete(id: string): Promise<void> {

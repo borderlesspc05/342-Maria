@@ -19,12 +19,23 @@ import DocumentosFinanceiros from "../pages/DocumentosFinanceiros/DocumentosFina
 import Perfil from "../pages/Perfil/Perfil";
 import Configuracoes from "../pages/Configuracoes/Configuracoes";
 import Backup from "../pages/Backup/Backup";
+import NotFound from "../pages/NotFound/NotFound";
+
+const allowSetup =
+  import.meta.env.DEV || import.meta.env.VITE_ALLOW_SETUP === "true";
 
 export function AppRoutes() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/setup-admin" element={<SetupAdmin />} />
+        {allowSetup ? (
+          <Route path="/setup-admin" element={<SetupAdmin />} />
+        ) : (
+          <Route
+            path="/setup-admin"
+            element={<Navigate to={paths.login} replace />}
+          />
+        )}
         <Route path={paths.login} element={<Login />} />
         <Route
           path={paths.register}
@@ -38,6 +49,14 @@ export function AppRoutes() {
         <Route
           path={paths.home}
           element={<Navigate to={paths.login} replace />}
+        />
+        <Route
+          path={paths.lancamentosDiarios}
+          element={<Navigate to={paths.cadernoVirtual} replace />}
+        />
+        <Route
+          path={paths.configuracoesLegacy}
+          element={<Navigate to={paths.configuracoes} replace />}
         />
         <Route
           path={paths.dashboard}
@@ -148,6 +167,14 @@ export function AppRoutes() {
           element={
             <ProtectedRoutes allowedRoles={["admin"]}>
               <Backup />
+            </ProtectedRoutes>
+          }
+        />
+        <Route
+          path="*"
+          element={
+            <ProtectedRoutes allowedRoles={["admin", "gestor", "colaborador"]}>
+              <NotFound />
             </ProtectedRoutes>
           }
         />

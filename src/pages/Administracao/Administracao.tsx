@@ -11,10 +11,14 @@ import {
   HiEyeOff,
 } from "react-icons/hi";
 import { Layout } from "../../components/Layout";
-import { userManagementService } from "../../services/userManagementService";
+import {
+  getCreatableRoles,
+  userManagementService,
+} from "../../services/userManagementService";
 import { useAuth } from "../../hooks/useAuth";
 import { useToast } from "../../contexts/ToastContext";
 import type { User, RegisterCredentials } from "../../types/user";
+import { renderModalPortal } from "../../utils/renderModalPortal";
 import "./Administracao.css";
 
 const Administracao: React.FC = () => {
@@ -82,6 +86,8 @@ const Administracao: React.FC = () => {
         newErrors.password = "Senha é obrigatória";
       } else if (formData.password.length < 6) {
         newErrors.password = "Senha deve ter no mínimo 6 caracteres";
+      } else if (!/[A-Z]/.test(formData.password)) {
+        newErrors.password = "Senha deve conter pelo menos 1 letra maiúscula";
       }
 
       if (!formData.confirmPassword) {
@@ -201,6 +207,8 @@ const Administracao: React.FC = () => {
     }
   };
 
+  const creatableRoles = getCreatableRoles(currentUser?.role);
+
   const filteredUsers = users.filter((user) => {
     if (!search.trim()) return true;
     const term = search.toLowerCase();
@@ -302,8 +310,10 @@ const Administracao: React.FC = () => {
           </div>
         )}
 
-        {showModal && (
-          <div className="modal-overlay" onClick={() => setShowModal(false)}>
+        {showModal &&
+          renderModalPortal(
+          <div className="administracao-page">
+            <div className="modal-overlay" onClick={() => setShowModal(false)}>
             <div className="modal-content" onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
                 <h2>
@@ -419,17 +429,24 @@ const Administracao: React.FC = () => {
                     value={formData.role}
                     onChange={handleChange}
                     className={errors.role ? "error" : ""}
+                    disabled={editingUser?.role === "admin"}
                   >
-                    <option value="colaborador">Colaborador</option>
-                    <option value="gestor">Gestor</option>
-                    <option value="admin">Administrador</option>
+                    {editingUser?.role === "admin" ? (
+                      <option value="admin">Administrador</option>
+                    ) : (
+                      creatableRoles.map((role) => (
+                        <option key={role} value={role}>
+                          {getRoleLabel(role)}
+                        </option>
+                      ))
+                    )}
                   </select>
                   {errors.role && (
                     <span className="error-message">{errors.role}</span>
                   )}
                   <small className="form-hint">
-                    Colaborador: apenas visualização | Gestor: pode editar |
-                    Admin: acesso total
+                    Admin pode criar Gestor ou Colaborador. Gestores são criados
+                    apenas por administradores.
                   </small>
                 </div>
 
@@ -449,6 +466,7 @@ const Administracao: React.FC = () => {
                   </button>
                 </div>
               </form>
+            </div>
             </div>
           </div>
         )}

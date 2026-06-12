@@ -14,7 +14,8 @@
     "firebase:deploy": "firebase deploy",
     "firebase:deploy:rules": "firebase deploy --only firestore:rules",
     "firebase:deploy:firestore": "firebase deploy --only firestore:rules",
-    "firebase:deploy:storage": "firebase deploy --only storage"
+    "firebase:deploy:storage": "firebase deploy --only storage",
+    "firebase:deploy:functions": "firebase deploy --only functions"
   },
   "dependencies": {
     "@emailjs/browser": "^4.4.1",

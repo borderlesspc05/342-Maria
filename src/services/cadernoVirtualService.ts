@@ -372,7 +372,7 @@ export const cadernoVirtualService = {
 
   async create(
     data: LancamentoFormData,
-    userId: string,
+    _userId: string,
     userName: string
   ): Promise<string> {
     const scope = await getDataScope(

@@ -1,0 +1,55 @@
+/**
+ * Modais de formulário: centralizados na viewport com respiro no topo.
+ */
+.lancamentos-modal-overlay,
+.colaboradores-page .modal-overlay,
+.administracao-page .modal-overlay,
+.financeiro-modal-overlay,
+.documentacoes-modal-overlay,
+.premios-modal-overlay,
+.boletins-medicao .modal-overlay,
+.modal-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 1000;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 48px 24px 24px !important;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.lancamentos-modal,
+.colaboradores-page .modal-content,
+.administracao-page .modal-content,
+.financeiro-modal-content,
+.documentacoes-modal-content,
+.premios-modal,
+.modal-content {
+  margin: auto;
+  max-height: calc(100vh - 72px);
+}
+
+@media (max-width: 767px) {
+  .lancamentos-modal-overlay,
+  .colaboradores-page .modal-overlay,
+  .administracao-page .modal-overlay,
+  .financeiro-modal-overlay,
+  .documentacoes-modal-overlay,
+  .premios-modal-overlay,
+  .boletins-medicao .modal-overlay,
+  .modal-overlay {
+    padding: 40px 16px 16px !important;
+  }
+
+  .lancamentos-modal,
+  .colaboradores-page .modal-content,
+  .administracao-page .modal-content,
+  .financeiro-modal-content,
+  .documentacoes-modal-content,
+  .premios-modal,
+  .modal-content {
+    max-height: calc(100vh - 56px);
+  }
+}

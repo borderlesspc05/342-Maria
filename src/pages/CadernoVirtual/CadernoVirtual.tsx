@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
+import { renderModalPortal } from "../../utils/renderModalPortal";
 import { Layout } from "../../components/Layout";
 import {
   HiPlus,
@@ -225,7 +226,7 @@ const AnexosPopover: React.FC<AnexosPopoverProps> = ({
   );
 };
 
-const LancamentosDiarios: React.FC = () => {
+const CadernoVirtual: React.FC = () => {
   const { user } = useAuth();
   const { showToast } = useToast();
   const hoje = new Date();
@@ -260,8 +261,12 @@ const LancamentosDiarios: React.FC = () => {
   }, [loadLancamentos]);
 
   useEffect(() => {
+    if (user?.role === "colaborador") {
+      setColaboradoresList([]);
+      return;
+    }
     colaboradorService.list().then(setColaboradoresList).catch(console.error);
-  }, []);
+  }, [user?.role]);
 
   const handleFilterChange = (
     key: keyof LancamentoFilters,
@@ -610,6 +615,8 @@ const LancamentosDiarios: React.FC = () => {
             }}
             userId={user?.uid || ""}
             userName={user?.name || ""}
+            userEmail={user?.email || ""}
+            userRole={user?.role}
           />
         )}
       </div>
@@ -624,6 +631,8 @@ interface LancamentoModalProps {
   onSuccess: () => void;
   userId: string;
   userName: string;
+  userEmail: string;
+  userRole?: "admin" | "gestor" | "colaborador";
 }
 
 const LancamentoModal: React.FC<LancamentoModalProps> = ({
@@ -633,11 +642,22 @@ const LancamentoModal: React.FC<LancamentoModalProps> = ({
   onSuccess,
   userId,
   userName,
+  userEmail,
+  userRole,
 }) => {
   const { showToast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const defaultColab =
-    colaboradoresList.length > 0 ? colaboradoresList[0] : null;
+  const isColaboradorUser = userRole === "colaborador";
+  const matchedColab = colaboradoresList.find(
+    (c) =>
+      (userEmail && c.email?.toLowerCase() === userEmail.toLowerCase()) ||
+      c.nome.toLowerCase() === userName.toLowerCase()
+  );
+  const defaultColab = isColaboradorUser
+    ? matchedColab ?? null
+    : colaboradoresList.length > 0
+      ? colaboradoresList[0]
+      : null;
 
   const initialFormData = useMemo(
     () => ({
@@ -659,7 +679,7 @@ const LancamentoModal: React.FC<LancamentoModalProps> = ({
         lancamento?.colaboradorNome || defaultColab?.nome || userName,
       observacoes: lancamento?.observacoes || "",
     }),
-    [lancamento, defaultColab, userId, userName]
+    [lancamento, defaultColab, userId, userName, isColaboradorUser]
   );
 
   const [formData, setFormData] = useState(initialFormData);
@@ -811,7 +831,7 @@ const LancamentoModal: React.FC<LancamentoModalProps> = ({
 
   const totalAnexos = existingAnexos.length + newFiles.length;
 
-  return (
+  const modalContent = (
     <div className="lancamentos-modal-overlay" onClick={onClose}>
       <div
         className="lancamentos-modal"
@@ -873,18 +893,28 @@ const LancamentoModal: React.FC<LancamentoModalProps> = ({
           <div className="lancamentos-modal-row">
             <div className="lancamentos-modal-group">
               <label>Colaborador *</label>
-              <select
-                value={formData.colaboradorId}
-                onChange={(e) => handleColaboradorChange(e.target.value)}
-                required
-              >
-                <option value="">Selecione o colaborador...</option>
-                {colaboradoresList.map((colab) => (
-                  <option key={colab.id} value={colab.id}>
-                    {colab.nome}
-                  </option>
-                ))}
-              </select>
+              {isColaboradorUser ? (
+                <input
+                  type="text"
+                  value={formData.colaboradorNome}
+                  readOnly
+                  className="lancamentos-input-readonly"
+                  title="Lançamento vinculado ao seu usuário"
+                />
+              ) : (
+                <select
+                  value={formData.colaboradorId}
+                  onChange={(e) => handleColaboradorChange(e.target.value)}
+                  required
+                >
+                  <option value="">Selecione o colaborador...</option>
+                  {colaboradoresList.map((colab) => (
+                    <option key={colab.id} value={colab.id}>
+                      {colab.nome}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
             <div className="lancamentos-modal-group">
@@ -1105,6 +1135,8 @@ const LancamentoModal: React.FC<LancamentoModalProps> = ({
       </div>
     </div>
   );
+
+  return renderModalPortal(modalContent);
 };
 
-export default LancamentosDiarios;
+export default CadernoVirtual;
