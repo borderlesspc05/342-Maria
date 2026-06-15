@@ -7,6 +7,7 @@ export interface Colaborador {
   cargo: string;
   setor: string;
   email?: string;
+  telefone?: string;
   admissao?: Date;
 }
 

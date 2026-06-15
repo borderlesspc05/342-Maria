@@ -3,6 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { HiUser, HiMail, HiLockClosed, HiEye, HiEyeOff } from "react-icons/hi";
 import { useAuth } from "../../hooks/useAuth";
 import type { RegisterCredentials } from "../../types/user";
+import { WhatsAppButton } from "../../components/ui/WhatsAppButton";
+import { WhatsAppFab } from "../../components/ui/WhatsAppFab";
+import { buildSupportMessage } from "../../utils/whatsapp";
 import "./Register.css";
 
 const Register: React.FC = () => {
@@ -270,9 +273,15 @@ const Register: React.FC = () => {
         </form>
 
         <div className="register-footer">
-          <p>© 2025 Sistema de Gestão RH. Todos os direitos reservados.</p>
+          <p>© {new Date().getFullYear()} Sistema de Gestão RH. Todos os direitos reservados.</p>
+          <WhatsAppButton
+            variant="link"
+            label="Precisa de ajuda? Fale no WhatsApp"
+            message={buildSupportMessage("Preciso de ajuda para criar minha conta.")}
+          />
         </div>
       </div>
+      <WhatsAppFab />
     </div>
   );
 };

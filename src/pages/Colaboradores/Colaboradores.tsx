@@ -24,9 +24,11 @@ import type {
 import type { Colaborador } from "../../types/premioProdutividade";
 import type { User } from "../../types/user";
 import type { UserRole } from "../../services/securityService";
-import { maskCPF, unmaskCPF } from "../../utils/masks";
+import { maskCPF, unmaskCPF, maskPhone, unmaskPhone } from "../../utils/masks";
 import { useToast } from "../../contexts/ToastContext";
 import { useAuth } from "../../hooks/useAuth";
+import { WhatsAppButton } from "../../components/ui/WhatsAppButton";
+import { buildSupportMessage, phoneToWhatsAppDigits } from "../../utils/whatsapp";
 import "./Colaboradores.css";
 
 const LIST_LOAD_TIMEOUT_MS = 15000;
@@ -174,6 +176,7 @@ const Colaboradores: React.FC = () => {
                   <th>Cargo</th>
                   <th>Setor</th>
                   <th>E-mail</th>
+                  <th>Telefone</th>
                   {canManageAccess && <th>Acesso ao sistema</th>}
                   <th>Ações</th>
                 </tr>
@@ -192,6 +195,7 @@ const Colaboradores: React.FC = () => {
                       <td>{colab.cargo}</td>
                       <td>{colab.setor}</td>
                       <td>{colab.email || "—"}</td>
+                      <td>{colab.telefone ? maskPhone(colab.telefone) : "—"}</td>
                       {canManageAccess && (
                         <td>
                           {systemRole ? (
@@ -205,6 +209,16 @@ const Colaboradores: React.FC = () => {
                       )}
                       <td>
                         <div className="action-buttons">
+                          {colab.telefone && (
+                            <WhatsAppButton
+                              variant="icon"
+                              phone={phoneToWhatsAppDigits(colab.telefone)}
+                              message={buildSupportMessage(
+                                `Olá ${colab.nome}, estou entrando em contato pelo Sistema de Gestão RH.`
+                              )}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          )}
                           <button
                             className="btn-icon"
                             onClick={() => {
@@ -284,6 +298,7 @@ const ColaboradorModal: React.FC<ColaboradorModalProps> = ({
     cargo: colaborador?.cargo ?? "",
     setor: colaborador?.setor ?? "",
     email: colaborador?.email ?? "",
+    telefone: colaborador?.telefone ? maskPhone(colaborador.telefone) : "",
     admissao:
       colaborador?.admissao != null
         ? new Date(colaborador.admissao).toISOString().split("T")[0]
@@ -307,6 +322,7 @@ const ColaboradorModal: React.FC<ColaboradorModalProps> = ({
         cargo: colaborador.cargo,
         setor: colaborador.setor,
         email: colaborador.email ?? "",
+        telefone: colaborador.telefone ? maskPhone(colaborador.telefone) : "",
         admissao:
           colaborador.admissao != null
             ? new Date(colaborador.admissao).toISOString().split("T")[0]
@@ -320,6 +336,7 @@ const ColaboradorModal: React.FC<ColaboradorModalProps> = ({
         cargo: "",
         setor: "",
         email: "",
+        telefone: "",
         admissao: "",
       });
       setCriarAcesso(canCreateAccess);
@@ -335,6 +352,8 @@ const ColaboradorModal: React.FC<ColaboradorModalProps> = ({
     const { name, value } = e.target;
     if (name === "cpf") {
       setFormData((prev) => ({ ...prev, cpf: maskCPF(value) }));
+    } else if (name === "telefone") {
+      setFormData((prev) => ({ ...prev, telefone: maskPhone(value) }));
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
     }
@@ -380,6 +399,9 @@ const ColaboradorModal: React.FC<ColaboradorModalProps> = ({
         cargo: formData.cargo.trim(),
         setor: formData.setor.trim(),
         email: formData.email.trim() || undefined,
+        telefone: formData.telefone.trim()
+          ? unmaskPhone(formData.telefone)
+          : undefined,
         admissao: formData.admissao ? new Date(formData.admissao) : undefined,
       };
 
@@ -519,6 +541,19 @@ const ColaboradorModal: React.FC<ColaboradorModalProps> = ({
                   placeholder="email@empresa.com"
                 />
               </div>
+              <div className="form-group">
+                <label>Telefone / WhatsApp</label>
+                <input
+                  type="tel"
+                  name="telefone"
+                  value={formData.telefone}
+                  onChange={handleChange}
+                  placeholder="(11) 98765-4321"
+                />
+              </div>
+            </div>
+
+            <div className="form-row">
               <div className="form-group">
                 <label>Data de admissão</label>
                 <input

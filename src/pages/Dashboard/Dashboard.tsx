@@ -27,6 +27,8 @@ import { cadernoVirtualService } from "../../services/cadernoVirtualService";
 import { useNotificationContext } from "../../contexts/NotificationContext";
 import { formatCurrency } from "../../utils/exportUtils";
 import { PageHeader } from "../../components/ui/PageHeader";
+import { WhatsAppButton } from "../../components/ui/WhatsAppButton";
+import { buildSupportMessage } from "../../utils/whatsapp";
 import "./Dashboard.css";
 
 const MESES_PT: string[] = [
@@ -773,6 +775,18 @@ const Dashboard: React.FC = () => {
                         </span>
                         <span className="alert-time">{alert.time}</span>
                       </div>
+                      {(alert.category === "documentacao" ||
+                        alert.category === "boletim") && (
+                        <WhatsAppButton
+                          variant="link"
+                          label="Falar no WhatsApp"
+                          message={buildSupportMessage(
+                            `${alert.title}\n${alert.message}`
+                          )}
+                          className="alert-whatsapp-link"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      )}
                     </div>
                   </div>
                 ))}
@@ -868,17 +882,17 @@ const Dashboard: React.FC = () => {
                 <span>Ver Boletins</span>
               </button>
             )}
-            {canAccess(paths.documentacoes) && (
+            {canAccess(paths.relatorios) && (
               <button
                 type="button"
                 className="action-button"
-                onClick={() => navigate(paths.documentacoes)}
-                aria-label="Ver Documentações"
+                onClick={() => navigate(paths.relatorios)}
+                aria-label="Ver Relatórios"
               >
                 <span className="action-icon">
-                  <HiFolder />
+                  <HiChartBar />
                 </span>
-                <span>Ver Documentações</span>
+                <span>Ver Relatórios</span>
               </button>
             )}
           </div>

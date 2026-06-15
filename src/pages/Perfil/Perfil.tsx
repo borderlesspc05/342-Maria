@@ -13,6 +13,8 @@ import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { ChangePasswordModal } from "../../components/ChangePasswordModal";
+import { WhatsAppButton } from "../../components/ui/WhatsAppButton";
+import { buildSupportMessage } from "../../utils/whatsapp";
 import { paths } from "../../routes/paths";
 
 export default function Perfil() {
@@ -195,6 +197,20 @@ export default function Perfil() {
               <HiLogout /> Sair
             </button>
           </div>
+        </div>
+
+        <div className="settings-card">
+          <h3 className="settings-section-title">Suporte</h3>
+          <p className="perfil-support-text">
+            Dúvidas ou problemas? Entre em contato com o RH pelo WhatsApp.
+          </p>
+          <WhatsAppButton
+            variant="button"
+            label="Falar com suporte no WhatsApp"
+            message={buildSupportMessage(
+              `Olá, sou ${user?.name ?? "usuário"} (${roleLabel}) e preciso de ajuda.`
+            )}
+          />
         </div>
       </div>
 

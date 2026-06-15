@@ -473,6 +473,11 @@
   align-items: center;
   gap: 16px;
   font-size: 13px;
+  flex-wrap: wrap;
+}
+
+.notificacao-whatsapp-link {
+  margin-left: auto;
 }
 
 .notificacao-tempo {

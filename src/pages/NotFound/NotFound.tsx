@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
 import { HiHome, HiExclamationCircle } from "react-icons/hi";
 import { Layout } from "../../components/Layout";
+import { WhatsAppButton } from "../../components/ui/WhatsAppButton";
+import { buildSupportMessage } from "../../utils/whatsapp";
 import { paths } from "../../routes/paths";
 import "./NotFound.css";
 
@@ -19,6 +21,12 @@ export default function NotFound() {
             <HiHome />
             Ir para o painel
           </Link>
+          <WhatsAppButton
+            variant="button"
+            label="Falar com suporte no WhatsApp"
+            message={buildSupportMessage("Preciso de ajuda para encontrar uma página no sistema.")}
+            className="not-found-whatsapp"
+          />
         </div>
       </div>
     </Layout>

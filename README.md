@@ -13,8 +13,19 @@ Aplicação web (React + TypeScript + Vite) com backend Firebase para gestão de
 npm install
 cd functions && npm install && cd ..
 cp .env.example .env
-# Preencha as variáveis VITE_FIREBASE_* no .env
+# Preencha as variáveis VITE_FIREBASE_* e VITE_SUPPORT_WHATSAPP no .env
 ```
+
+## WhatsApp (suporte)
+
+Configure no `.env`:
+
+```env
+VITE_SUPPORT_WHATSAPP=5511999999999
+VITE_SUPPORT_WHATSAPP_LABEL=Suporte RH
+```
+
+O app exibe botão flutuante, links no footer, login, alertas de documentos e contato direto com colaboradores (quando telefone cadastrado).
 
 ## Desenvolvimento
 

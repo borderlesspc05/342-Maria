@@ -2,6 +2,9 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { HiMail, HiLockClosed } from "react-icons/hi";
 import { useAuth } from "../../hooks/useAuth";
+import { WhatsAppButton } from "../../components/ui/WhatsAppButton";
+import { WhatsAppFab } from "../../components/ui/WhatsAppFab";
+import { buildSupportMessage } from "../../utils/whatsapp";
 import "./Login.css";
 
 const Login: React.FC = () => {
@@ -200,10 +203,16 @@ const Login: React.FC = () => {
           </button>
 
           <div className="login-footer">
-            <p>© 2025 Sistema de Gestão RH. Todos os direitos reservados.</p>
+            <p>© {new Date().getFullYear()} Sistema de Gestão RH. Todos os direitos reservados.</p>
+            <WhatsAppButton
+              variant="link"
+              label="Precisa de ajuda? Fale no WhatsApp"
+              message={buildSupportMessage("Estou com dificuldade para entrar no sistema.")}
+            />
           </div>
         </form>
       </div>
+      <WhatsAppFab />
     </div>
   );
 };

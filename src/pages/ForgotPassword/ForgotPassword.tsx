@@ -2,6 +2,9 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { HiMail, HiArrowLeft, HiCheckCircle } from "react-icons/hi";
 import { authService } from "../../services/authService";
+import { WhatsAppButton } from "../../components/ui/WhatsAppButton";
+import { WhatsAppFab } from "../../components/ui/WhatsAppFab";
+import { buildSupportMessage } from "../../utils/whatsapp";
 import "./ForgotPassword.css";
 
 const ForgotPassword: React.FC = () => {
@@ -165,7 +168,17 @@ const ForgotPassword: React.FC = () => {
             </div>
           </div>
         )}
+        <div className="forgot-password-footer">
+          <WhatsAppButton
+            variant="link"
+            label="Não recebeu o e-mail? Fale no WhatsApp"
+            message={buildSupportMessage(
+              `Preciso de ajuda para recuperar minha senha. E-mail: ${email || "não informado"}.`
+            )}
+          />
+        </div>
       </div>
+      <WhatsAppFab />
     </div>
   );
 };

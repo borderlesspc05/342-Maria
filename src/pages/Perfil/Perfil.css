@@ -2,6 +2,12 @@
     padding: 32px;
     position: relative;
   }
+
+.perfil-support-text {
+  margin: 0 0 16px;
+  color: #64748b;
+  line-height: 1.5;
+}
   
   .perfil-title {
     font-size: 32px;

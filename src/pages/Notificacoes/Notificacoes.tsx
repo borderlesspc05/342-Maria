@@ -24,11 +24,15 @@ import type {
 } from "../../types/notificacao";
 import { Layout } from "../../components/Layout";
 import { useToast } from "../../contexts/ToastContext";
+import { usePermissions } from "../../hooks/usePermissions";
+import { WhatsAppButton } from "../../components/ui/WhatsAppButton";
+import { buildSupportMessage } from "../../utils/whatsapp";
 import "./Notificacoes.css";
 
 const Notificacoes: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { canAccess } = usePermissions();
   const { showToast } = useToast();
   const {
     notificacoes,
@@ -74,10 +78,13 @@ const Notificacoes: React.FC = () => {
 
   const handleNotificationClick = async (id: string, link?: string) => {
     await marcarComoLida(id);
-    if (link) {
+    if (link && canAccess(link)) {
       navigate(link);
     }
   };
+
+  const isDocumentNotification = (tipo: TipoNotificacao) =>
+    tipo === "documento_vencido" || tipo === "documento_vencendo";
 
   const formatarTempo = (data: Date) => {
     const agora = new Date();
@@ -552,6 +559,17 @@ const Notificacoes: React.FC = () => {
                       <span className="email-sent">
                         <HiMail className="email-icon" /> E-mail enviado
                       </span>
+                    )}
+                    {isDocumentNotification(notificacao.tipo) && (
+                      <WhatsAppButton
+                        variant="link"
+                        label="WhatsApp RH"
+                        message={buildSupportMessage(
+                          `${notificacao.titulo}\n${notificacao.mensagem}`
+                        )}
+                        className="notificacao-whatsapp-link"
+                        onClick={(e) => e.stopPropagation()}
+                      />
                     )}
                   </div>
                 </div>

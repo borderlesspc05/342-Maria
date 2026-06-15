@@ -39,6 +39,8 @@ import {
   maskCTPS,
   maskCNH,
 } from "../../utils/masks";
+import { WhatsAppButton } from "../../components/ui/WhatsAppButton";
+import { buildSupportMessage } from "../../utils/whatsapp";
 import "./Documentacoes.css";
 
 const tiposDocumento: TipoDocumento[] = [
@@ -570,6 +572,17 @@ const Documentacoes: React.FC = () => {
                               >
                                 <HiCheckCircle />
                               </button>
+                            )}
+                            {(doc.status === "Vencido" ||
+                              doc.status === "Vencendo") && (
+                              <WhatsAppButton
+                                variant="icon"
+                                label="WhatsApp RH"
+                                message={buildSupportMessage(
+                                  `Documento ${doc.tipoDocumento} de ${doc.colaboradorNome} (${doc.status}). Validade: ${formatDate(doc.dataValidade)}.`
+                                )}
+                                onClick={(e) => e.stopPropagation()}
+                              />
                             )}
                             <button
                               className="documentacoes-action-btn delete"

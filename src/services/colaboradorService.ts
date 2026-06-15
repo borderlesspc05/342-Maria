@@ -45,6 +45,7 @@ function mapSnapshotToColaborador(
     cargo: data.cargo ?? "",
     setor: data.setor ?? "",
     email: data.email,
+    telefone: data.telefone,
     admissao: data.admissao?.toDate?.() ? data.admissao.toDate() : undefined,
   };
 }
@@ -60,6 +61,7 @@ function getLocalColaboradores(): Colaborador[] {
       cargo: string;
       setor: string;
       email?: string;
+      telefone?: string;
       admissao?: string;
     }>;
     return parsed.map((c) => ({
@@ -89,6 +91,7 @@ function saveLocalColaborador(colab: Colaborador): void {
     cargo: c.cargo,
     setor: c.setor,
     email: c.email,
+    telefone: c.telefone,
     admissao: c.admissao instanceof Date ? c.admissao.toISOString() : undefined,
   }));
   localStorage.setItem(getScopedLocalKey(), JSON.stringify(toSave));
@@ -103,6 +106,7 @@ function removeLocalColaborador(id: string): void {
     cargo: c.cargo,
     setor: c.setor,
     email: c.email,
+    telefone: c.telefone,
     admissao: c.admissao instanceof Date ? c.admissao.toISOString() : undefined,
   }));
   localStorage.setItem(getScopedLocalKey(), JSON.stringify(toSave));
@@ -120,6 +124,7 @@ export interface ColaboradorFormData {
   cargo: string;
   setor: string;
   email?: string;
+  telefone?: string;
   admissao?: Date;
 }
 
@@ -213,6 +218,7 @@ export const colaboradorService = {
       cargo: data.cargo.trim(),
       setor: data.setor.trim(),
       email: data.email?.trim(),
+      telefone: data.telefone?.trim(),
       admissao: data.admissao,
     };
 
@@ -230,6 +236,7 @@ export const colaboradorService = {
         cargo: newColab.cargo,
         setor: newColab.setor,
         email: newColab.email ?? null,
+        telefone: newColab.telefone ?? null,
         admissao: data.admissao ? Timestamp.fromDate(data.admissao) : null,
         criadoEm: Timestamp.now(),
         atualizadoEm: Timestamp.now(),
@@ -267,6 +274,7 @@ export const colaboradorService = {
         if (data.cargo !== undefined) item.cargo = data.cargo.trim();
         if (data.setor !== undefined) item.setor = data.setor.trim();
         if (data.email !== undefined) item.email = data.email?.trim();
+        if (data.telefone !== undefined) item.telefone = data.telefone?.trim();
         if (data.admissao !== undefined) item.admissao = data.admissao;
         saveLocalColaborador(item);
       }
@@ -281,6 +289,8 @@ export const colaboradorService = {
     if (data.cargo !== undefined) payload.cargo = data.cargo.trim();
     if (data.setor !== undefined) payload.setor = data.setor.trim();
     if (data.email !== undefined) payload.email = data.email?.trim() || null;
+    if (data.telefone !== undefined)
+      payload.telefone = data.telefone?.trim() || null;
     if (data.admissao !== undefined)
       payload.admissao = data.admissao ? Timestamp.fromDate(data.admissao) : null;
     await updateDoc(docRef, payload);

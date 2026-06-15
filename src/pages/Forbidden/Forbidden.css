@@ -73,3 +73,7 @@
   transform: translateY(-1px);
   box-shadow: 0 6px 20px var(--theme-primary-shadow);
 }
+
+.forbidden-whatsapp {
+  margin-top: 12px;
+}
