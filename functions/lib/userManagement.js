@@ -22,13 +22,19 @@ function validatePassword(password) {
 export const createUserByAdmin = functions.https.onCall(async (data, context) => {
     assertAdmin(context);
     const requesterRole = await getRequesterRole(context.auth.uid);
-    if (requesterRole !== "admin") {
-        throw new functions.https.HttpsError("permission-denied", "Apenas administradores podem criar usuários.");
+    if (requesterRole !== "admin" && requesterRole !== "gestor") {
+        throw new functions.https.HttpsError("permission-denied", "Apenas administradores e gestores podem criar usuários.");
     }
     const email = String(data?.email ?? "").trim().toLowerCase();
     const password = String(data?.password ?? "");
     const name = String(data?.name ?? "").trim();
     const role = (data?.role ?? "colaborador");
+    if (requesterRole === "gestor" && role !== "colaborador") {
+        throw new functions.https.HttpsError("permission-denied", "Gestores só podem criar colaboradores.");
+    }
+    if (requesterRole === "admin" && role === "admin") {
+        throw new functions.https.HttpsError("invalid-argument", "Não é possível criar outro administrador por aqui.");
+    }
     if (!email || email.length < 5) {
         throw new functions.https.HttpsError("invalid-argument", "E-mail inválido.");
     }

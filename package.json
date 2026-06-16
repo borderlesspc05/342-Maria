@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -12,6 +15,7 @@
     "test:coverage": "vitest run --coverage",
     "preview": "vite preview",
     "firebase:deploy": "firebase deploy",
+    "firebase:deploy:hosting": "npm run build && firebase deploy --only hosting",
     "firebase:deploy:rules": "firebase deploy --only firestore:rules",
     "firebase:deploy:firestore": "firebase deploy --only firestore:rules",
     "firebase:deploy:storage": "firebase deploy --only storage",
